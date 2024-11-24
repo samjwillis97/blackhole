@@ -9,7 +9,7 @@ import (
 
 type MonitorSetting struct {
 	Directory string
-	Handler   func(fsnotify.Event)
+	Handler   func(fsnotify.Event, string)
 }
 
 func StartMonitoring(settings []MonitorSetting) *fsnotify.Watcher {
@@ -48,7 +48,7 @@ func watchHandler(w *fsnotify.Watcher, s []MonitorSetting) {
 
 			for _, setting := range s {
 				if strings.Contains(event.Name, setting.Directory) {
-					setting.Handler(event)
+					setting.Handler(event, setting.Directory)
 				}
 			}
 		case err, ok := <-w.Errors:
