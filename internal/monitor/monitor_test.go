@@ -30,7 +30,7 @@ func TestBasicHandler(t *testing.T) {
 
 	settings = append(settings, monitor.MonitorSetting{
 		Directory: dir,
-		Handler: func(e fsnotify.Event) {
+		Handler: func(e fsnotify.Event, s string) {
 			resultChannel <- result{
 				true,
 				fsnotify.Create,
@@ -50,3 +50,5 @@ func TestBasicHandler(t *testing.T) {
 		t.Errorf("Expected true create, received %t, %s", outcome.bool, outcome.Op.String())
 	}
 }
+
+// TODO: Advanced test with atleast like a subdirectory
