@@ -2,16 +2,15 @@ package debrid
 
 import (
 	"fmt"
+	"log"
 	"path"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/samjwillis97/sams-blackhole/internal/config"
 )
 
-// Want a set or something to keep track of wht we are waiting for
-// this should really have a mutex/lock around it
-
-// Will probably want to scan processing dirs
+// TODO: Will probably want to scan processing dirs
 // on reboot and add to the monitored set
 
 func DebridMountMonitorHandler(e fsnotify.Event, root string) {
@@ -23,13 +22,25 @@ func DebridMountMonitorHandler(e fsnotify.Event, root string) {
 	}
 }
 
-func MonitorForFiles(name string) error {
+func MonitorForFiles(name string, completedDir string) error {
+	log.Printf("[debrid-monitor]\tadding %s", name)
+	timeout := time.Duration(config.GetAppConfig().RealDebrid.MountTimeout) * time.Second
 	pathSet := getInstance()
-	pathSet.add(name, 60*time.Second)
+	meta := PathMeta{
+		Expiration:   time.Now().Add(timeout),
+		CompletedDir: completedDir,
+	}
+	pathSet.add(name, meta)
+
 	return nil
 }
 
-func handleNewFileInMount(filepath string, filename string) {
+func GetMonitoredFile(name string) PathMeta {
+	pathSet := getInstance()
+	return pathSet.get(name)
+}
+
+func handleNewFileInMount(_ string, filename string) {
 	pathSet := getInstance()
 
 	if !pathSet.exists(filename) {

@@ -1,7 +1,6 @@
 package arr
 
 import (
-	"fmt"
 	"log"
 	"path"
 
@@ -28,11 +27,11 @@ func SonarrMonitorHandler(e fsnotify.Event, root string) {
 // completed once it has been finished processing, then the *arr application
 // can finish the handling
 func handleNewSonarrFile(filepath string) {
-	log.Printf("Handling created sonarr file: %s\n", filepath)
+	log.Printf("[sonarr]\t\tcreated file: %s\n", filepath)
 
-	processingLocation := config.GetAppConfig().Sonarr.ProcessingPath
+	sonarrConfig := config.GetAppConfig().Sonarr
 
-	toProcess, err := torrents.NewFileToProcess(filepath, processingLocation)
+	toProcess, err := torrents.NewFileToProcess(filepath, sonarrConfig.ProcessingPath)
 	if err != nil {
 		panic(err)
 	}
@@ -46,7 +45,7 @@ func handleNewSonarrFile(filepath string) {
 		debrid.AddMagnet(toProcess.FullPath)
 	}
 
-	debrid.MonitorForFiles(toProcess.Filename)
+	debrid.MonitorForFiles(toProcess.FilenameNoExt, sonarrConfig.CompletedPath)
 
 	// TODO: Handle waiting after torrent has been added
 	// Thiswill probably require watching the mount or osmething like

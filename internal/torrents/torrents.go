@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strings"
 )
 
 type TorrentType int
@@ -15,16 +16,17 @@ const (
 )
 
 type ToProcess struct {
-	FullPath string
-	Filename string
-	FileType TorrentType
+	FullPath      string
+	Filename      string
+	FilenameNoExt string
+	FileType      TorrentType
 }
 
 // NewFileToProcess looks at the given file path, and moves the
 // file into the proccesing directory, creating the directory if
 // required. Then returning the new path back as well as the filename
 func NewFileToProcess(filePath string, processingLocation string) (ToProcess, error) {
-	log.Printf("Starting to process %s\n", filePath)
+	log.Printf("[torrents]\t\tmoving %s to process\n", filePath)
 	_, filename := path.Split(filePath)
 	processingPath := path.Join(processingLocation, filename)
 
@@ -39,9 +41,10 @@ func NewFileToProcess(filePath string, processingLocation string) (ToProcess, er
 	}
 
 	return ToProcess{
-		FullPath: processingPath,
-		Filename: filename,
-		FileType: torrentType,
+		FullPath:      processingPath,
+		Filename:      filename,
+		FilenameNoExt: strings.Split(filename, ".")[0],
+		FileType:      torrentType,
 	}, nil
 }
 

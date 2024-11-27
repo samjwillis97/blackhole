@@ -7,7 +7,8 @@ import (
 )
 
 type PathMeta struct {
-	expiration time.Time
+	Expiration   time.Time
+	CompletedDir string
 }
 
 type PathSet map[string]PathMeta
@@ -29,16 +30,17 @@ func getInstance() *Monitors {
 			set: make(PathSet),
 		}
 	})
+
+	instance.cleanupExpiredItems()
+
 	return instance
 }
 
 // Add inserts an element into the set
-func (s *Monitors) add(item string, ttl time.Duration) {
+func (s *Monitors) add(item string, meta PathMeta) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.set[item] = PathMeta{
-		expiration: time.Now().Add(ttl),
-	}
+	s.set[item] = meta
 }
 
 // Exists checks if an element is in the set
@@ -79,7 +81,7 @@ func (s *Monitors) cleanupExpiredItems() {
 	now := time.Now()
 
 	for k, meta := range s.set {
-		if now.After(meta.expiration) {
+		if now.After(meta.Expiration) {
 			log.Printf("Removing %s from monitoring\n", k)
 			delete(s.set, k)
 		}

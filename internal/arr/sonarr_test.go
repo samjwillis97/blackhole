@@ -8,11 +8,14 @@ import (
 	"net/http/httptest"
 	"os"
 	"path"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/samjwillis97/sams-blackhole/internal/arr"
 	"github.com/samjwillis97/sams-blackhole/internal/config"
+	"github.com/samjwillis97/sams-blackhole/internal/debrid"
 	"github.com/samjwillis97/sams-blackhole/internal/torrents"
 	"github.com/spf13/viper"
 )
@@ -54,8 +57,11 @@ func createProcessingDir(rootDir string) string {
 func TestNewTorrentFileCreated(t *testing.T) {
 	requestMade := false
 	debridapikey := "123456789"
+	startTime := time.Now()
 	rootDir, createdFile := createTestFile(torrents.TorrentFile)
 	sonarrProcessingPath := createProcessingDir(rootDir)
+	sonarrCompletedPath := path.Join(rootDir, "completed_test")
+	fileWithNoExtension := strings.Split(createdFile, ".")[0]
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestMade = true
@@ -77,7 +83,9 @@ func TestNewTorrentFileCreated(t *testing.T) {
 
 	mockViper := viper.New()
 	mockViper.Set("real_debrid.url", server.URL)
+	mockViper.Set("real_debrid.mount_timeout", 10)
 	mockViper.Set("sonarr.processing_path", sonarrProcessingPath)
+	mockViper.Set("sonarr.completed_path", sonarrCompletedPath)
 	config.InitializeAppConfig(mockViper)
 
 	mockSecretViper := viper.New()
@@ -100,12 +108,21 @@ func TestNewTorrentFileCreated(t *testing.T) {
 	if !requestMade {
 		t.Errorf("Expected a request to be made, but was not")
 	}
+
+	monitoredMeta := debrid.GetMonitoredFile(fileWithNoExtension)
+	if monitoredMeta.CompletedDir != sonarrCompletedPath {
+		t.Errorf("Expected debrid mount monitor to have completed path %s, got %s", sonarrCompletedPath, monitoredMeta.CompletedDir)
+	}
+	if monitoredMeta.Expiration.Before(startTime) {
+		t.Errorf("Expected debrid mount monitor to have time after %v, got %v", startTime, monitoredMeta.Expiration)
+	}
 }
 
 func TestNewMagnetFileCreated(t *testing.T) {
 	requestMade := false
 	rootDir, createdFile := createTestFile(torrents.Magnet)
 	sonarrProcessingPath := createProcessingDir(rootDir)
+	sonarrCompletedPath := path.Join(rootDir, "completed_test")
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestMade = true
@@ -133,6 +150,7 @@ func TestNewMagnetFileCreated(t *testing.T) {
 	mockViper := viper.New()
 	mockViper.Set("real_debrid.url", server.URL)
 	mockViper.Set("sonarr.processing_path", sonarrProcessingPath)
+	mockViper.Set("sonarr.completed_path", sonarrCompletedPath)
 	config.InitializeAppConfig(mockViper)
 
 	mockSecretViper := viper.New()
@@ -155,4 +173,6 @@ func TestNewMagnetFileCreated(t *testing.T) {
 	if !requestMade {
 		t.Errorf("Expected a request to be made, but was not")
 	}
+
+	// TODO: Check in debrid mount monitor
 }

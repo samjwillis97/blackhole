@@ -21,14 +21,15 @@ type Secrets struct {
 }
 
 type DebridConfig struct {
-	Url       string
-	MountPath string `mapstructure:"mount_path"`
+	Url          string
+	MountPath    string `mapstructure:"mount_path"`
+	MountTimeout int64  `mapstructure:"mount_timeout"` // This is time we will wait for it to appear in the mount
 }
 
 type SonarrConfig struct {
 	Url            string
 	ProcessingPath string `mapstructure:"processing_path"`
-	CompletePath   string `mapstructure:"complete_path"`
+	CompletedPath  string `mapstructure:"completed_path"`
 }
 
 type AppConfig struct {
@@ -39,6 +40,8 @@ type AppConfig struct {
 // This seems kinda fucked idk
 func InitializeAppConfig(v *viper.Viper) {
 	var conf AppConfig
+
+	v.SetDefault("real_debrid.mount_timeout", 600)
 
 	if v != nil {
 		err := v.Unmarshal(&conf)
@@ -139,7 +142,7 @@ func validateAppConfig() {
 		panic(err)
 	}
 
-	if _, err := os.Stat(appConf.Sonarr.CompletePath); errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Stat(appConf.Sonarr.CompletedPath); errors.Is(err, os.ErrNotExist) {
 		panic(err)
 	}
 

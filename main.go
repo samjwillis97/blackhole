@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	log.Println("[app] Starting up")
+	log.Println("[app] starting")
 
 	config.GetSecrets()
 
