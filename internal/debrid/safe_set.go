@@ -23,6 +23,11 @@ var (
 	once     sync.Once
 )
 
+func GetMonitoredFile(name string) PathMeta {
+	pathSet := getInstance()
+	return pathSet.get(name)
+}
+
 // GetInstance ensures only one instance of SafeSet exists
 func getInstance() *Monitors {
 	once.Do(func() {

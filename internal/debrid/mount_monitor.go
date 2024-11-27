@@ -23,21 +23,17 @@ func DebridMountMonitorHandler(e fsnotify.Event, root string) {
 }
 
 func MonitorForFiles(name string, completedDir string) error {
-	log.Printf("[debrid-monitor]\tadding %s", name)
 	timeout := time.Duration(config.GetAppConfig().RealDebrid.MountTimeout) * time.Second
+	expiry := time.Now().Add(timeout)
+	log.Printf("[debrid-monitor]\tadding %s, watching until %v", name, expiry)
 	pathSet := getInstance()
 	meta := PathMeta{
-		Expiration:   time.Now().Add(timeout),
+		Expiration:   expiry,
 		CompletedDir: completedDir,
 	}
 	pathSet.add(name, meta)
 
 	return nil
-}
-
-func GetMonitoredFile(name string) PathMeta {
-	pathSet := getInstance()
-	return pathSet.get(name)
 }
 
 func handleNewFileInMount(_ string, filename string) {
@@ -47,5 +43,8 @@ func handleNewFileInMount(_ string, filename string) {
 		fmt.Println("File not found in set")
 	}
 
-	// make dir in completed
+	// make dir in completed using filename
+	// symlinks contents from mount to completed
+	// hit *arr API
+	// remove from monitoring?
 }

@@ -120,13 +120,16 @@ func TestNewTorrentFileCreated(t *testing.T) {
 
 func TestNewMagnetFileCreated(t *testing.T) {
 	requestMade := false
+	debridapikey := "123456789"
+	startTime := time.Now()
 	rootDir, createdFile := createTestFile(torrents.Magnet)
 	sonarrProcessingPath := createProcessingDir(rootDir)
 	sonarrCompletedPath := path.Join(rootDir, "completed_test")
+	fileWithNoExtension := strings.Split(createdFile, ".")[0]
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestMade = true
-		if r.Header.Get("Authorization") != "Bearer 123456789" {
+		if r.Header.Get("Authorization") != fmt.Sprintf("Bearer %s", debridapikey) {
 			t.Errorf("Expected a correct Authorization header, got %s", r.Header.Get("Authorization"))
 		}
 		if r.Method != "POST" {
@@ -149,12 +152,13 @@ func TestNewMagnetFileCreated(t *testing.T) {
 
 	mockViper := viper.New()
 	mockViper.Set("real_debrid.url", server.URL)
+	mockViper.Set("real_debrid.mount_timeout", 10)
 	mockViper.Set("sonarr.processing_path", sonarrProcessingPath)
 	mockViper.Set("sonarr.completed_path", sonarrCompletedPath)
 	config.InitializeAppConfig(mockViper)
 
 	mockSecretViper := viper.New()
-	mockSecretViper.Set("debridapikey", "123456789")
+	mockSecretViper.Set("debridapikey", debridapikey)
 	config.InitializeSecrets(mockSecretViper)
 
 	event := fsnotify.Event{
@@ -174,5 +178,11 @@ func TestNewMagnetFileCreated(t *testing.T) {
 		t.Errorf("Expected a request to be made, but was not")
 	}
 
-	// TODO: Check in debrid mount monitor
+	monitoredMeta := debrid.GetMonitoredFile(fileWithNoExtension)
+	if monitoredMeta.CompletedDir != sonarrCompletedPath {
+		t.Errorf("Expected debrid mount monitor to have completed path %s, got %s", sonarrCompletedPath, monitoredMeta.CompletedDir)
+	}
+	if monitoredMeta.Expiration.Before(startTime) {
+		t.Errorf("Expected debrid mount monitor to have time after %v, got %v", startTime, monitoredMeta.Expiration)
+	}
 }
