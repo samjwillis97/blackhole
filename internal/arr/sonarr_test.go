@@ -1,6 +1,8 @@
 package arr_test
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -37,13 +39,27 @@ func createTestFile(fileType torrents.TorrentType) (string, string) {
 	return tempDir, fileName
 }
 
+func createProcessingDir(rootDir string) string {
+	processingDir := path.Join(rootDir, "test_processing")
+	if _, err := os.Stat(processingDir); errors.Is(err, os.ErrNotExist) {
+		err := os.Mkdir(processingDir, os.ModePerm)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	return processingDir
+}
+
 func TestNewTorrentFileCreated(t *testing.T) {
 	requestMade := false
+	debridapikey := "123456789"
 	rootDir, createdFile := createTestFile(torrents.TorrentFile)
+	sonarrProcessingPath := createProcessingDir(rootDir)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestMade = true
-		if r.Header.Get("Authorization") != "Bearer 123456789" {
+		if r.Header.Get("Authorization") != fmt.Sprintf("Bearer %s", debridapikey) {
 			t.Errorf("Expected a correct Authorization header, got %s", r.Header.Get("Authorization"))
 		}
 		if r.Method != "PUT" {
@@ -56,16 +72,16 @@ func TestNewTorrentFileCreated(t *testing.T) {
 		// TODO: Check body contents
 
 		w.WriteHeader(http.StatusOK)
-		// w.Write([]byte(`{"value":"fixed"}`))
 	}))
 	defer server.Close()
 
 	mockViper := viper.New()
-	mockViper.Set("sonarr.url", server.URL)
+	mockViper.Set("real_debrid.url", server.URL)
+	mockViper.Set("sonarr.processing_path", sonarrProcessingPath)
 	config.InitializeAppConfig(mockViper)
 
 	mockSecretViper := viper.New()
-	mockSecretViper.Set("debridapikey", "123456789")
+	mockSecretViper.Set("debridapikey", debridapikey)
 	config.InitializeSecrets(mockSecretViper)
 
 	event := fsnotify.Event{
@@ -73,7 +89,13 @@ func TestNewTorrentFileCreated(t *testing.T) {
 		Op:   fsnotify.Create,
 	}
 
-	arr.SonarrHandler(event, rootDir)
+	arr.SonarrMonitorHandler(event, rootDir)
+
+	processingFile := path.Join(sonarrProcessingPath, createdFile)
+	_, err := os.Stat(processingFile)
+	if errors.Is(err, os.ErrNotExist) {
+		t.Errorf("Expected to find a file in processing at %s, did not.", processingFile)
+	}
 
 	if !requestMade {
 		t.Errorf("Expected a request to be made, but was not")
@@ -83,6 +105,7 @@ func TestNewTorrentFileCreated(t *testing.T) {
 func TestNewMagnetFileCreated(t *testing.T) {
 	requestMade := false
 	rootDir, createdFile := createTestFile(torrents.Magnet)
+	sonarrProcessingPath := createProcessingDir(rootDir)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestMade = true
@@ -104,12 +127,12 @@ func TestNewMagnetFileCreated(t *testing.T) {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		// w.Write([]byte(`{"value":"fixed"}`))
 	}))
 	defer server.Close()
 
 	mockViper := viper.New()
-	mockViper.Set("sonarr.url", server.URL)
+	mockViper.Set("real_debrid.url", server.URL)
+	mockViper.Set("sonarr.processing_path", sonarrProcessingPath)
 	config.InitializeAppConfig(mockViper)
 
 	mockSecretViper := viper.New()
@@ -121,7 +144,13 @@ func TestNewMagnetFileCreated(t *testing.T) {
 		Op:   fsnotify.Create,
 	}
 
-	arr.SonarrHandler(event, rootDir)
+	arr.SonarrMonitorHandler(event, rootDir)
+
+	processingFile := path.Join(sonarrProcessingPath, createdFile)
+	_, err := os.Stat(processingFile)
+	if errors.Is(err, os.ErrNotExist) {
+		t.Errorf("Expected to find a file in processing at %s, did not.", processingFile)
+	}
 
 	if !requestMade {
 		t.Errorf("Expected a request to be made, but was not")

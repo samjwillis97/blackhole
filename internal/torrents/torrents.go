@@ -20,22 +20,15 @@ type ToProcess struct {
 	FileType TorrentType
 }
 
-const PROCESSING_FOLDER = "processing"
-
 // NewFileToProcess looks at the given file path, and moves the
 // file into the proccesing directory, creating the directory if
 // required. Then returning the new path back as well as the filename
-func NewFileToProcess(filePath string) (ToProcess, error) {
+func NewFileToProcess(filePath string, processingLocation string) (ToProcess, error) {
 	log.Printf("Starting to process %s\n", filePath)
-	rootDir, filename := path.Split(filePath)
-	processingPath := path.Join(rootDir, PROCESSING_FOLDER, filename)
+	_, filename := path.Split(filePath)
+	processingPath := path.Join(processingLocation, filename)
 
-	err := checkAndCreateProcessingDir(rootDir)
-	if err != nil {
-		return ToProcess{}, err
-	}
-
-	err = os.Rename(filePath, processingPath)
+	err := os.Rename(filePath, processingPath)
 	if err != nil {
 		return ToProcess{}, err
 	}
@@ -62,13 +55,4 @@ func getTorrentType(filename string) (TorrentType, error) {
 	}
 
 	return 0, errors.New("Not a valid torrent file")
-}
-
-func checkAndCreateProcessingDir(rootdir string) error {
-	processingPath := path.Join(rootdir, PROCESSING_FOLDER)
-	if _, err := os.Stat(processingPath); errors.Is(err, os.ErrNotExist) {
-		return os.MkdirAll(processingPath, os.ModePerm)
-	}
-
-	return nil
 }

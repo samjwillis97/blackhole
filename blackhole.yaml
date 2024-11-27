@@ -1,2 +1,7 @@
+sonarr:
+  url: http://localhost:7878
+  processing_path: /tmp/sonarr/processing
+  complete_path: /tmp/sonarr/complete
 real_debrid:
   url: https://api.real-debrid.com/rest/1.0/
+  mount_path: /tmp/debrid-mount

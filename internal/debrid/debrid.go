@@ -23,7 +23,7 @@ func blessRequest(r *http.Request) *http.Request {
 
 // Contents of a magnet file contain the magnet link
 func AddMagnet(filepath string) {
-	url, err := url.Parse(config.GetAppConfig().Sonarr.Url)
+	url, err := url.Parse(config.GetAppConfig().RealDebrid.Url)
 	url = url.JoinPath("torrents/addMagnet")
 
 	// There might be a better way of getting bytes into buffer
@@ -54,11 +54,11 @@ func AddMagnet(filepath string) {
 		panic(errors.New("Unable to make request"))
 	}
 
-	fmt.Println(resp.StatusCode)
+	// fmt.Println(resp.StatusCode)
 }
 
 func AddTorrent(filepath string) {
-	url, err := url.Parse(config.GetAppConfig().Sonarr.Url)
+	url, err := url.Parse(config.GetAppConfig().RealDebrid.Url)
 	url = url.JoinPath("torrents/addTorrent")
 
 	// There might be a better way of getting bytes into buffer
@@ -86,5 +86,5 @@ func AddTorrent(filepath string) {
 		panic(errors.New("Unable to make request"))
 	}
 
-	fmt.Println(resp.StatusCode)
+	// fmt.Println(resp.StatusCode)
 }

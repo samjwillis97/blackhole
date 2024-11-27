@@ -1,7 +1,9 @@
 package config
 
 import (
+	"errors"
 	"net/url"
+	"os"
 
 	"github.com/spf13/viper"
 )
@@ -19,11 +21,14 @@ type Secrets struct {
 }
 
 type DebridConfig struct {
-	Url string
+	Url       string
+	MountPath string `mapstructure:"mount_path"`
 }
 
 type SonarrConfig struct {
-	Url string
+	Url            string
+	ProcessingPath string `mapstructure:"processing_path"`
+	CompletePath   string `mapstructure:"complete_path"`
 }
 
 type AppConfig struct {
@@ -125,8 +130,20 @@ func validateAppConfig() {
 		panic(err)
 	}
 
+	if _, err := os.Stat(appConf.RealDebrid.MountPath); errors.Is(err, os.ErrNotExist) {
+		panic(err)
+	}
+
 	_, err = url.ParseRequestURI(appConf.Sonarr.Url)
 	if err != nil {
+		panic(err)
+	}
+
+	if _, err := os.Stat(appConf.Sonarr.CompletePath); errors.Is(err, os.ErrNotExist) {
+		panic(err)
+	}
+
+	if _, err := os.Stat(appConf.Sonarr.ProcessingPath); errors.Is(err, os.ErrNotExist) {
 		panic(err)
 	}
 

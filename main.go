@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/samjwillis97/sams-blackhole/internal/config"
@@ -9,12 +9,11 @@ import (
 )
 
 func main() {
-	fmt.Println("Starting up")
+	log.Println("[app] Starting up")
 
-	config.GetSecrets(nil)
-	fmt.Println(config.GetAppConfig(nil))
+	config.GetSecrets()
 
-  // TODO: Also scan the folder for if files were added whilst not monitoring
+	// TODO: Also scan the folder for if files were added whilst not monitoring
 	monitorSetup := []monitor.MonitorSetting{}
 
 	monitorSetup = append(monitorSetup, monitor.MonitorSetting{

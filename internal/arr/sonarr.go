@@ -2,18 +2,20 @@ package arr
 
 import (
 	"fmt"
+	"log"
 	"path"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/samjwillis97/sams-blackhole/internal/config"
 	"github.com/samjwillis97/sams-blackhole/internal/debrid"
 	"github.com/samjwillis97/sams-blackhole/internal/torrents"
 )
 
-// SonarrHandler handles all the different events from the fsnotify
+// SonarrMonitorHandler handles all the different events from the fsnotify
 // file system watcher for a certain directory. These direcetories
 // should be getting .torrent or .magnet files places in them by
 // the *arr applications when setup using a Blackhole torrent client
-func SonarrHandler(e fsnotify.Event, root string) {
+func SonarrMonitorHandler(e fsnotify.Event, root string) {
 	filepath := path.Join(root, e.Name)
 	switch e.Op {
 	case fsnotify.Create:
@@ -26,9 +28,11 @@ func SonarrHandler(e fsnotify.Event, root string) {
 // completed once it has been finished processing, then the *arr application
 // can finish the handling
 func handleNewSonarrFile(filepath string) {
-	fmt.Printf("Sonarr handle created %s\n", filepath)
+	log.Printf("Handling created sonarr file: %s\n", filepath)
 
-	toProcess, err := torrents.NewFileToProcess(filepath)
+	processingLocation := config.GetAppConfig().Sonarr.ProcessingPath
+
+	toProcess, err := torrents.NewFileToProcess(filepath, processingLocation)
 	if err != nil {
 		panic(err)
 	}
@@ -41,6 +45,8 @@ func handleNewSonarrFile(filepath string) {
 	case torrents.Magnet:
 		debrid.AddMagnet(toProcess.FullPath)
 	}
+
+	debrid.MonitorForFiles(toProcess.Filename)
 
 	// TODO: Handle waiting after torrent has been added
 	// Thiswill probably require watching the mount or osmething like

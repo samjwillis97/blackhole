@@ -1,19 +1,20 @@
 package monitor
 
 import (
-	"fmt"
+	"log"
 	"strings"
 
 	"github.com/fsnotify/fsnotify"
 )
 
 type MonitorSetting struct {
+	Name      string
 	Directory string
 	Handler   func(fsnotify.Event, string)
 }
 
 func StartMonitoring(settings []MonitorSetting) *fsnotify.Watcher {
-	fmt.Println("Initialising monitor")
+	log.Println("[monitor] initializing")
 
 	// Create new watcher.
 	watcher, err := fsnotify.NewWatcher()
@@ -26,14 +27,14 @@ func StartMonitoring(settings []MonitorSetting) *fsnotify.Watcher {
 	go watchHandler(watcher, settings)
 
 	for _, setting := range settings {
-		fmt.Printf("Watching %s\n", setting.Directory)
+		log.Printf("[monitor] watching: %s", setting.Directory)
 		err = watcher.Add(setting.Directory)
 		if err != nil {
 			panic(err)
 		}
 	}
 
-	fmt.Println("Monitor setup")
+	log.Printf("[monitor] started")
 
 	return watcher
 }
@@ -42,12 +43,14 @@ func watchHandler(w *fsnotify.Watcher, s []MonitorSetting) {
 	for {
 		select {
 		case event, ok := <-w.Events:
+			log.Printf("[monitor] %s event for %s", event.Op.String(), event.Name)
 			if !ok {
 				return
 			}
 
 			for _, setting := range s {
 				if strings.Contains(event.Name, setting.Directory) {
+					log.Printf("[monitor] calling handler: %s", setting.Name)
 					setting.Handler(event, setting.Directory)
 				}
 			}
