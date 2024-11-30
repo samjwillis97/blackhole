@@ -23,12 +23,13 @@ type Secrets struct {
 
 type DebridConfig struct {
 	Url          string
-	MountPath    string `mapstructure:"mount_path"`
+	WatchPatch   string `mapstructure:"watch_path"`
 	MountTimeout int64  `mapstructure:"mount_timeout"` // This is time we will wait for it to appear in the mount
 }
 
 type SonarrConfig struct {
 	Url            string
+	WatchPath      string `mapstructure:"watch_path"`
 	ProcessingPath string `mapstructure:"processing_path"`
 	CompletedPath  string `mapstructure:"completed_path"`
 }
@@ -135,7 +136,7 @@ func validateAppConfig() {
 		panic(err)
 	}
 
-	if _, err := os.Stat(appConf.RealDebrid.MountPath); errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Stat(appConf.RealDebrid.WatchPatch); errors.Is(err, os.ErrNotExist) {
 		panic(err)
 	}
 

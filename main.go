@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 
-	"github.com/fsnotify/fsnotify"
 	"github.com/samjwillis97/sams-blackhole/internal/config"
 	"github.com/samjwillis97/sams-blackhole/internal/monitor"
 )
@@ -17,12 +16,13 @@ func main() {
 	monitorSetup := []monitor.MonitorSetting{}
 
 	monitorSetup = append(monitorSetup, monitor.MonitorSetting{
-		Directory: "/Users/sam/code/github.com/samjwillis97/sams-blackhole/main",
-		Handler: func(event fsnotify.Event, s string) {
-			println("HELLLOO")
-			println(event.Name)
-			println(event.Op.String())
-		},
+		Directory: config.GetAppConfig().Sonarr.WatchPath,
+		Handler:   monitor.SonarrMonitorHandler,
+	})
+
+	monitorSetup = append(monitorSetup, monitor.MonitorSetting{
+		Directory: config.GetAppConfig().RealDebrid.WatchPatch,
+		Handler:   monitor.DebridMountMonitorHandler,
 	})
 
 	w := monitor.StartMonitoring(monitorSetup)
