@@ -5,3 +5,4 @@ sonarr:
 real_debrid:
   url: https://api.real-debrid.com/rest/1.0/
   mount_path: /tmp/debrid-mount
+  mount_timeout: 600

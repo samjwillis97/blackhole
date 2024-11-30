@@ -41,8 +41,6 @@ type AppConfig struct {
 func InitializeAppConfig(v *viper.Viper) {
 	var conf AppConfig
 
-	v.SetDefault("real_debrid.mount_timeout", 600)
-
 	if v != nil {
 		err := v.Unmarshal(&conf)
 		if err != nil {
@@ -55,6 +53,8 @@ func InitializeAppConfig(v *viper.Viper) {
 	}
 
 	v = viper.New()
+
+	v.SetDefault("real_debrid.mount_timeout", 600)
 
 	v.SetConfigName("blackhole")
 	v.SetConfigType("yaml")
