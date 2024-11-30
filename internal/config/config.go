@@ -17,8 +17,8 @@ var confSet bool = false
 var appConf AppConfig
 
 type Secrets struct {
-	DebridApiKey string
-	SonarrApiKey string
+	DebridApiKey string `mapstructure:"DEBRID_API_KEY"`
+	SonarrApiKey string `mapstructure:"SONARR_API_KEY"`
 }
 
 type DebridConfig struct {
@@ -96,14 +96,11 @@ func InitializeSecrets(v *viper.Viper) {
 
 	v = viper.New()
 
-	v.SetConfigName(".env")
-	v.SetConfigName("env")
+	v.SetConfigFile(".env")
 	v.AddConfigPath(".")
 	v.ReadInConfig()
 
 	v.AutomaticEnv()
-	v.BindEnv("DebridApiKey", "DEBRID_API_KEY")
-	v.BindEnv("SonarrApiKey", "SONARR_API_KEY")
 
 	err := v.Unmarshal(&secrets)
 	if err != nil {
@@ -152,6 +149,6 @@ func validateAppConfig() {
 	if _, err := os.Stat(appConf.Sonarr.ProcessingPath); errors.Is(err, os.ErrNotExist) {
 		panic(err)
 	}
-
-	// TODO: Validate debrid mount path
 }
+
+// TODO Validate secrets

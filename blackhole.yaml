@@ -1,9 +1,9 @@
 sonarr:
-  url: http://localhost:7878
-  watch_path: /tmp/sonarr
-  processing_path: /tmp/sonarr/processing
-  complete_path: /tmp/sonarr/complete
+  url: http://192.168.4.97:8989
+  watch_path: /mnt/symlinks/sonarr
+  processing_path: /mnt/symlinks/sonarr/processing
+  completed_path: /mnt/symlinks/sonarr/completed
 real_debrid:
   url: https://api.real-debrid.com/rest/1.0/
-  watch_path: /tmp/debrid-mount
+  watch_path: /mnt/remote/realdebrid/torrents
   mount_timeout: 600

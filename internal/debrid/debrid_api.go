@@ -4,12 +4,19 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
+	"log"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
 
 	"github.com/samjwillis97/sams-blackhole/internal/config"
 )
+
+type AddMagnetPost struct {
+	Magnet string `json:"magnet"`
+}
 
 func blessRequest(r *http.Request) *http.Request {
 	r.Header.Set("Authorization", fmt.Sprintf("Bearer %s", config.GetSecrets().DebridApiKey))
@@ -21,24 +28,29 @@ func blessRequest(r *http.Request) *http.Request {
 
 // Contents of a magnet file contain the magnet link
 func AddMagnet(filepath string) {
-	url, err := url.Parse(config.GetAppConfig().RealDebrid.Url)
-	url = url.JoinPath("torrents/addMagnet")
+	reqUrl, err := url.Parse(config.GetAppConfig().RealDebrid.Url)
+	reqUrl = reqUrl.JoinPath("torrents/addMagnet")
 
-	// There might be a better way of getting bytes into buffer
-	data, err := os.ReadFile(filepath)
+	fileContent, err := os.ReadFile(filepath)
 	if err != nil {
 		panic(err)
 	}
 
-	payload := []byte(fmt.Sprintf(`{"magnet":"%s"}`, data))
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
 
-	req, err := http.NewRequest(http.MethodPost, url.String(), bytes.NewBuffer(payload))
+	err = writer.WriteField("magnet", string(fileContent))
+	if err != nil {
+		panic(err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, reqUrl.String(), &body)
 	if err != nil {
 		panic(err)
 	}
 
 	req = blessRequest(req)
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -49,6 +61,8 @@ func AddMagnet(filepath string) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 300 {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		log.Fatalf(string(bodyBytes))
 		panic(errors.New("Unable to make request"))
 	}
 

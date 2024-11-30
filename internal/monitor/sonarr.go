@@ -2,7 +2,6 @@ package monitor
 
 import (
 	"log"
-	"path"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/samjwillis97/sams-blackhole/internal/arr"
@@ -11,15 +10,18 @@ import (
 	"github.com/samjwillis97/sams-blackhole/internal/torrents"
 )
 
+// TODO: definitely need to debounce this
+
 // SonarrMonitorHandler handles all the different events from the fsnotify
 // file system watcher for a certain directory. These direcetories
 // should be getting .torrent or .magnet files places in them by
 // the *arr applications when setup using a Blackhole torrent client
 func SonarrMonitorHandler(e fsnotify.Event, root string) {
-	filepath := path.Join(root, e.Name)
+	// NOTE: In earlier testing the name was onl the filename not the full path, this could be a linux/darwin difference
+	// filepath := path.Join(root, e.Name)
 	switch e.Op {
 	case fsnotify.Create:
-		handleNewSonarrFile(filepath)
+		handleNewSonarrFile(e.Name)
 	}
 }
 
@@ -39,6 +41,7 @@ func handleNewSonarrFile(filepath string) {
 
 	// fmt.Println(toProcess)
 
+	log.Printf("[sonarr]\t\tadding to debrid: %s\n", filepath)
 	switch toProcess.FileType {
 	case torrents.TorrentFile:
 		debrid.AddTorrent(toProcess.FullPath)
@@ -46,6 +49,7 @@ func handleNewSonarrFile(filepath string) {
 		debrid.AddMagnet(toProcess.FullPath)
 	}
 
+	log.Printf("[sonarr]\t\tadding to monitor: %s\n", filepath)
 	MonitorForFiles(toProcess.FilenameNoExt, sonarrConfig.CompletedPath, arr.Sonarr)
 
 	// There will be some different handling dependant on whether

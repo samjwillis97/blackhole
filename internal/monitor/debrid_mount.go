@@ -24,14 +24,17 @@ import (
 
 // FIXME: make sure this works with directory
 func DebridMountMonitorHandler(e fsnotify.Event, root string) {
-	filepath := path.Join(root, e.Name)
+	// NOTE: In earlier testing the name was onl the filename not the full path, this could be a linux/darwin difference
+	// filepath := path.Join(root, e.Name)
+	name := path.Base(e.Name)
 
 	switch e.Op {
 	case fsnotify.Create:
-		handleNewFileInMount(filepath, e.Name)
+		handleNewFileInMount(e.Name, name)
 	}
 }
 
+// TODO: also check if it is already availabe here
 func MonitorForFiles(name string, completedDir string, service arr.ArrService) error {
 	timeout := time.Duration(config.GetAppConfig().RealDebrid.MountTimeout) * time.Second
 	expiry := time.Now().Add(timeout)
