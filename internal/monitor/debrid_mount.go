@@ -1,4 +1,4 @@
-package debrid
+package monitor
 
 import (
 	"errors"
@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/samjwillis97/sams-blackhole/internal/arr"
 	"github.com/samjwillis97/sams-blackhole/internal/config"
 )
 
@@ -31,13 +32,14 @@ func DebridMountMonitorHandler(e fsnotify.Event, root string) {
 	}
 }
 
-func MonitorForFiles(name string, completedDir string) error {
+func MonitorForFiles(name string, completedDir string, service arr.ArrService) error {
 	timeout := time.Duration(config.GetAppConfig().RealDebrid.MountTimeout) * time.Second
 	expiry := time.Now().Add(timeout)
 	log.Printf("[debrid-monitor]\tadding %s, watching until %v", name, expiry)
 	pathSet := getInstance()
 	meta := PathMeta{
 		Expiration:   expiry,
+		Service:      service,
 		CompletedDir: completedDir,
 	}
 	pathSet.add(name, meta)
@@ -62,7 +64,7 @@ func handleNewFileInMount(filePath string, filename string) {
 	completedPath := path.Join(pathMeta.CompletedDir, filename)
 	os.Mkdir(completedPath, os.ModePerm)
 
-	filepath.WalkDir(filePath, func(currentFile string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(filePath, func(currentFile string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -97,6 +99,15 @@ func handleNewFileInMount(filePath string, filename string) {
 
 		return nil
 	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	switch pathMeta.Service {
+	case arr.Sonarr:
+		arr.SonarrRefreshMonitoredDownloads()
+	}
 
 	// hit *arr API
 	// remove from monitoring?

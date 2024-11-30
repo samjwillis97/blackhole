@@ -1,4 +1,4 @@
-package arr_test
+package monitor_test
 
 import (
 	"errors"
@@ -13,9 +13,8 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/samjwillis97/sams-blackhole/internal/arr"
 	"github.com/samjwillis97/sams-blackhole/internal/config"
-	"github.com/samjwillis97/sams-blackhole/internal/debrid"
+	"github.com/samjwillis97/sams-blackhole/internal/monitor"
 	"github.com/samjwillis97/sams-blackhole/internal/torrents"
 	"github.com/spf13/viper"
 )
@@ -54,6 +53,7 @@ func createProcessingDir(rootDir string) string {
 	return processingDir
 }
 
+// TODO: Given When Then
 func TestNewTorrentFileCreated(t *testing.T) {
 	requestMade := false
 	debridapikey := "123456789"
@@ -97,7 +97,7 @@ func TestNewTorrentFileCreated(t *testing.T) {
 		Op:   fsnotify.Create,
 	}
 
-	arr.SonarrMonitorHandler(event, rootDir)
+	monitor.SonarrMonitorHandler(event, rootDir)
 
 	processingFile := path.Join(sonarrProcessingPath, createdFile)
 	_, err := os.Stat(processingFile)
@@ -109,7 +109,7 @@ func TestNewTorrentFileCreated(t *testing.T) {
 		t.Errorf("Expected a request to be made, but was not")
 	}
 
-	monitoredMeta := debrid.GetMonitoredFile(fileWithNoExtension)
+	monitoredMeta := monitor.GetMonitoredFile(fileWithNoExtension)
 	if monitoredMeta.CompletedDir != sonarrCompletedPath {
 		t.Errorf("Expected debrid mount monitor to have completed path %s, got %s", sonarrCompletedPath, monitoredMeta.CompletedDir)
 	}
@@ -118,6 +118,7 @@ func TestNewTorrentFileCreated(t *testing.T) {
 	}
 }
 
+// TODO: Given When Then
 func TestNewMagnetFileCreated(t *testing.T) {
 	requestMade := false
 	debridapikey := "123456789"
@@ -166,7 +167,7 @@ func TestNewMagnetFileCreated(t *testing.T) {
 		Op:   fsnotify.Create,
 	}
 
-	arr.SonarrMonitorHandler(event, rootDir)
+	monitor.SonarrMonitorHandler(event, rootDir)
 
 	processingFile := path.Join(sonarrProcessingPath, createdFile)
 	_, err := os.Stat(processingFile)
@@ -178,7 +179,7 @@ func TestNewMagnetFileCreated(t *testing.T) {
 		t.Errorf("Expected a request to be made, but was not")
 	}
 
-	monitoredMeta := debrid.GetMonitoredFile(fileWithNoExtension)
+	monitoredMeta := monitor.GetMonitoredFile(fileWithNoExtension)
 	if monitoredMeta.CompletedDir != sonarrCompletedPath {
 		t.Errorf("Expected debrid mount monitor to have completed path %s, got %s", sonarrCompletedPath, monitoredMeta.CompletedDir)
 	}

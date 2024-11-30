@@ -1,10 +1,11 @@
-package arr
+package monitor
 
 import (
 	"log"
 	"path"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/samjwillis97/sams-blackhole/internal/arr"
 	"github.com/samjwillis97/sams-blackhole/internal/config"
 	"github.com/samjwillis97/sams-blackhole/internal/debrid"
 	"github.com/samjwillis97/sams-blackhole/internal/torrents"
@@ -45,23 +46,10 @@ func handleNewSonarrFile(filepath string) {
 		debrid.AddMagnet(toProcess.FullPath)
 	}
 
-	debrid.MonitorForFiles(toProcess.FilenameNoExt, sonarrConfig.CompletedPath)
-
-	// TODO: Handle waiting after torrent has been added
-	// Thiswill probably require watching the mount or osmething like
-	// that until a file turns up matching
-	// Implementation:
-	// Maybe create a watcher in main for the mount
-	// Add files from here to a map/set, every time file appears in
-	// mount, check if it is in the map/set, every 60s or whatever
-	// the wait time is, clear out the map/set, and handle the
-	// processing failed case
+	MonitorForFiles(toProcess.FilenameNoExt, sonarrConfig.CompletedPath, arr.Sonarr)
 
 	// There will be some different handling dependant on whether
 	// it should be avaiable on "instant_availability" endpoint (dead on debrid)
 	// As well as if there is only a single item in the torrent, i Think this can be ignored though and let *arr handle
 
-	// TODO: Attempt to add torrent to real-debrid
-	// There will be slight differences in handling magnet files and .torrent files
-	// due to different endpoints
 }

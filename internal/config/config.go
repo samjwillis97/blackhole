@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 	"os"
 
@@ -18,6 +19,7 @@ var appConf AppConfig
 
 type Secrets struct {
 	DebridApiKey string
+	SonarrApiKey string
 }
 
 type DebridConfig struct {
@@ -101,6 +103,7 @@ func InitializeSecrets(v *viper.Viper) {
 
 	v.AutomaticEnv()
 	v.BindEnv("DebridApiKey", "DEBRID_API_KEY")
+	v.BindEnv("SonarrApiKey", "SONARR_API_KEY")
 
 	err := v.Unmarshal(&secrets)
 	if err != nil {

@@ -14,6 +14,7 @@ type result struct {
 	fsnotify.Op
 }
 
+// TODO: Given When Then
 func TestBasicHandler(t *testing.T) {
 	resultChannel := make(chan result)
 

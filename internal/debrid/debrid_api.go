@@ -11,15 +11,13 @@ import (
 	"github.com/samjwillis97/sams-blackhole/internal/config"
 )
 
-// const BASE_URL = "https://api.real-debrid.com/rest/1.0/"
-
-// funcs like
-
 func blessRequest(r *http.Request) *http.Request {
 	r.Header.Set("Authorization", fmt.Sprintf("Bearer %s", config.GetSecrets().DebridApiKey))
 
 	return r
 }
+
+// TODO: implement retries
 
 // Contents of a magnet file contain the magnet link
 func AddMagnet(filepath string) {
