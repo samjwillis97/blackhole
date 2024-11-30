@@ -1,5 +1,6 @@
 sonarr:
   url: http://localhost:7878
+  watch_path: /tmp/sonarr
   processing_path: /tmp/sonarr/processing
   complete_path: /tmp/sonarr/complete
 real_debrid:
