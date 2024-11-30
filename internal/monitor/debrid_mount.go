@@ -47,9 +47,10 @@ func MonitorForFiles(name string, completedDir string, service arr.ArrService) e
 	return nil
 }
 
+// TODO: on error handle properly making sure *arr knows there was an error
 func handleNewFileInMount(filePath string, filename string) {
 	pathSet := getInstance()
-	pathMeta := pathSet.get(filename)
+	pathMeta := pathSet.remove(filename)
 
 	// Should get and existss in single call with the lock
 	if (pathMeta == PathMeta{}) {
@@ -104,11 +105,10 @@ func handleNewFileInMount(filePath string, filename string) {
 		panic(err)
 	}
 
+	log.Printf("[debrid-monitor]\tnotifying %s processing complete of %s", pathMeta.Service.String(), filename)
+	// TODO: error handles
 	switch pathMeta.Service {
 	case arr.Sonarr:
 		arr.SonarrRefreshMonitoredDownloads()
 	}
-
-	// hit *arr API
-	// remove from monitoring?
 }

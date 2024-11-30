@@ -10,6 +10,7 @@ import (
 )
 
 // TODO: implement retries
+// TODO: Maybe just a request wrapper for logging as well
 
 func blessSonarrRequest(r *http.Request) *http.Request {
 	r.Header.Set("X-Api-Key", config.GetSecrets().SonarrApiKey)

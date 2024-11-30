@@ -64,10 +64,12 @@ func (s *Monitors) get(item string) PathMeta {
 }
 
 // Remove deletes an element from the set
-func (s *Monitors) remove(item string) {
+func (s *Monitors) remove(item string) PathMeta {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	toReturn := s.get(item)
 	delete(s.set, item)
+	return toReturn
 }
 
 // Items returns all elements in the set
