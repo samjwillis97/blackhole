@@ -2,6 +2,7 @@ package debrid
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -14,8 +15,9 @@ import (
 	"github.com/samjwillis97/sams-blackhole/internal/config"
 )
 
-type AddMagnetPost struct {
-	Magnet string `json:"magnet"`
+type AddMagnetResponse struct {
+	ID  string `json:"id"`
+	URI string `json:"uri"`
 }
 
 func blessRequest(r *http.Request) *http.Request {
@@ -27,7 +29,7 @@ func blessRequest(r *http.Request) *http.Request {
 // TODO: implement retries
 
 // Contents of a magnet file contain the magnet link
-func AddMagnet(filepath string) {
+func AddMagnet(filepath string) AddMagnetResponse {
 	reqUrl, err := url.Parse(config.GetAppConfig().RealDebrid.Url)
 	reqUrl = reqUrl.JoinPath("torrents/addMagnet")
 
@@ -59,14 +61,69 @@ func AddMagnet(filepath string) {
 	}
 
 	defer resp.Body.Close()
+	bodyBytes, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode >= 300 {
-		bodyBytes, _ := io.ReadAll(resp.Body)
 		log.Fatalf(string(bodyBytes))
 		panic(errors.New("Unable to make request"))
 	}
 
-	// fmt.Println(resp.StatusCode)
+	var apiResponse AddMagnetResponse
+	err = json.Unmarshal(bodyBytes, &apiResponse)
+	if err != nil {
+		panic(err)
+	}
+
+	return apiResponse
+}
+
+func SelectFiles(torrentId string, fileIds []string) {
+	reqUrl, err := url.Parse(config.GetAppConfig().RealDebrid.Url)
+	if err != nil {
+		panic(err)
+	}
+	reqUrl = reqUrl.JoinPath(fmt.Sprintf("torrents/selectFiles/%s", torrentId))
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+
+	filesToSelect := "all"
+	if len(fileIds) > 0 {
+		filesToSelect = ""
+		for i, id := range fileIds {
+			if i > 0 {
+				filesToSelect += ","
+			}
+			filesToSelect += id
+		}
+	}
+
+	err = writer.WriteField("files", filesToSelect)
+	if err != nil {
+		panic(err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, reqUrl.String(), &body)
+	if err != nil {
+		panic(err)
+	}
+
+	req = blessRequest(req)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+
+	defer resp.Body.Close()
+	bodyBytes, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode >= 300 {
+		log.Fatalf(string(bodyBytes))
+		panic(errors.New("Unable to make request"))
+	}
 }
 
 func AddTorrent(filepath string) {

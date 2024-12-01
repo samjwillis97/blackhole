@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fsnotify/fsnotify"
+	"github.com/radovskyb/watcher"
 	"github.com/samjwillis97/sams-blackhole/internal/arr"
 	"github.com/samjwillis97/sams-blackhole/internal/config"
 )
@@ -23,14 +23,14 @@ import (
 // have been written)
 
 // FIXME: make sure this works with directory
-func DebridMountMonitorHandler(e fsnotify.Event, root string) {
+func DebridMountMonitorHandler(e watcher.Event, root string) {
 	// NOTE: In earlier testing the name was onl the filename not the full path, this could be a linux/darwin difference
 	// filepath := path.Join(root, e.Name)
-	name := path.Base(e.Name)
+	name := path.Base(e.Path)
 
 	switch e.Op {
-	case fsnotify.Create:
-		handleNewFileInMount(e.Name, name)
+	case watcher.Create:
+		handleNewFileInMount(e.Path, name)
 	}
 }
 
@@ -84,8 +84,6 @@ func handleNewFileInMount(filePath string, filename string) {
 
 		currentFileToMove := path.Join(completedPath, relativePath)
 
-		log.Printf("[debrid-monitor]\tsymlink %s -> %s", currentFile, currentFileToMove)
-
 		if strings.Contains(relativePath, "../") {
 			return errors.New("File appears to be from outside root dir")
 		}
@@ -96,7 +94,7 @@ func handleNewFileInMount(filePath string, filename string) {
 			return err
 		}
 
-		err = os.Symlink(filePath, currentFileToMove)
+		err = os.Symlink(currentFile, currentFileToMove)
 		if err != nil {
 			return err
 		}

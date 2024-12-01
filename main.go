@@ -14,19 +14,20 @@ func main() {
 	monitorSetup := []monitor.MonitorSetting{}
 
 	monitorSetup = append(monitorSetup, monitor.MonitorSetting{
-		Name:      "Sonarr Monitor",
-		Directory: config.GetAppConfig().Sonarr.WatchPath,
-		Handler:   monitor.SonarrMonitorHandler,
+		Name:         "Sonarr Monitor",
+		Directory:    config.GetAppConfig().Sonarr.WatchPath,
+		EventHandler: monitor.SonarrMonitorHandler,
 	})
 
 	monitorSetup = append(monitorSetup, monitor.MonitorSetting{
-		Name:      "Debrid Monitor",
-		Directory: config.GetAppConfig().RealDebrid.WatchPatch,
-		Handler:   monitor.DebridMountMonitorHandler,
+		Name:        "Debrid Monitor",
+		Directory:   config.GetAppConfig().RealDebrid.WatchPatch,
+		PollHandler: monitor.DebridMountMonitorHandler,
 	})
 
-	w := monitor.StartMonitoring(monitorSetup)
-	defer w.Close()
+	eventWatcher, pollWatcher := monitor.StartMonitoring(monitorSetup)
+	defer eventWatcher.Close()
+	defer pollWatcher.Close()
 
 	<-make(chan struct{})
 }

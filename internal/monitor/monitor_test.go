@@ -32,7 +32,7 @@ func TestBasicHandler(t *testing.T) {
 	settings = append(settings, monitor.MonitorSetting{
 		Name:      "test handler",
 		Directory: dir,
-		Handler: func(e fsnotify.Event, s string) {
+		EventHandler: func(e fsnotify.Event, s string) {
 			resultChannel <- result{
 				true,
 				fsnotify.Create,

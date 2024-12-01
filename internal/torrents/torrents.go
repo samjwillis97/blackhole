@@ -40,10 +40,13 @@ func NewFileToProcess(filePath string, processingLocation string) (ToProcess, er
 		return ToProcess{}, err
 	}
 
+	ext := path.Ext(filename)
+	filenameNoExt := strings.TrimSuffix(filename, ext)
+
 	return ToProcess{
 		FullPath:      processingPath,
 		Filename:      filename,
-		FilenameNoExt: strings.Split(filename, ".")[0],
+		FilenameNoExt: filenameNoExt,
 		FileType:      torrentType,
 	}, nil
 }
