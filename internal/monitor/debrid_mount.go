@@ -74,7 +74,7 @@ func handleNewFileInMount(filePath string, filename string) {
 	pathMeta := pathSet.remove(filename)
 
 	if (pathMeta == PathMeta{}) {
-    // This should be a trace
+		// This should be a trace
 		// log.Printf("[debrid-monitor]\tnot monitoring file: %s", filename)
 		return
 	}

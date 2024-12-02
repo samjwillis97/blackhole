@@ -128,24 +128,24 @@ func GetAppConfig() AppConfig {
 func validateAppConfig() {
 	_, err := url.ParseRequestURI(appConf.RealDebrid.Url)
 	if err != nil {
-		panic(err)
+		panic(errors.New("Invalid URL for Real Debrid"))
 	}
 
-	if _, err := os.Stat(appConf.RealDebrid.WatchPatch); errors.Is(err, os.ErrNotExist) {
-		panic(err)
+	if _, err := os.Stat(appConf.RealDebrid.WatchPatch); err != nil {
+		panic(errors.New("Invalid path for Real Debrid watch"))
 	}
 
 	_, err = url.ParseRequestURI(appConf.Sonarr.Url)
 	if err != nil {
-		panic(err)
+		panic(errors.New("Invalid URL for Sonarr"))
 	}
 
-	if _, err := os.Stat(appConf.Sonarr.CompletedPath); errors.Is(err, os.ErrNotExist) {
-		panic(err)
+	if _, err := os.Stat(appConf.Sonarr.CompletedPath); err != nil {
+		panic(errors.New("Invalid path for Sonarr completed"))
 	}
 
-	if _, err := os.Stat(appConf.Sonarr.ProcessingPath); errors.Is(err, os.ErrNotExist) {
-		panic(err)
+	if _, err := os.Stat(appConf.Sonarr.ProcessingPath); err != nil {
+		panic(errors.New("Invalid path for Sonarr processing"))
 	}
 }
 
