@@ -2,7 +2,6 @@
 
 Attempting to order these in what actually needs to be done
 
-- [ ] Secret validation
 - [ ] Fixup all the error handled (search for `panic(err)`)
 - [ ] Check usage of `go` in the event watch handler
 - [ ] Create a central HTTP client with:
@@ -24,3 +23,4 @@ Attempting to order these in what actually needs to be done
 - [X] Create events from files already in directory when starting monitors
     - [x] Event based
     - [X] Poll based
+- [X] Secret validation

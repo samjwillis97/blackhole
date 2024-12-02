@@ -107,6 +107,8 @@ func InitializeSecrets(v *viper.Viper) {
 
 	secretsSet = true
 	appSecrets = secrets
+
+	validateSecrets()
 }
 
 func GetSecrets() Secrets {
@@ -149,4 +151,12 @@ func validateAppConfig() {
 	}
 }
 
-// TODO Validate secrets
+func validateSecrets() {
+	if appSecrets.SonarrApiKey == "" {
+		panic(errors.New("Sonarr API key not set"))
+	}
+
+	if appSecrets.DebridApiKey == "" {
+		panic(errors.New("Debrid API key not set"))
+	}
+}
