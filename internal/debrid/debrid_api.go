@@ -15,7 +15,7 @@ import (
 	"github.com/samjwillis97/sams-blackhole/internal/config"
 )
 
-type AddMagnetResponse struct {
+type AddTorrentResponse struct {
 	ID  string `json:"id"`
 	URI string `json:"uri"`
 }
@@ -34,7 +34,7 @@ func blessRequest(r *http.Request) *http.Request {
 // TODO: implement retries
 
 // Contents of a magnet file contain the magnet link
-func AddMagnet(filepath string) AddMagnetResponse {
+func AddMagnet(filepath string) AddTorrentResponse {
 	reqUrl, err := url.Parse(config.GetAppConfig().RealDebrid.Url)
 	reqUrl = reqUrl.JoinPath("torrents/addMagnet")
 
@@ -73,7 +73,7 @@ func AddMagnet(filepath string) AddMagnetResponse {
 		panic(errors.New("Unable to make request"))
 	}
 
-	var apiResponse AddMagnetResponse
+	var apiResponse AddTorrentResponse
 	err = json.Unmarshal(bodyBytes, &apiResponse)
 	if err != nil {
 		panic(err)
@@ -165,7 +165,7 @@ func GetInfo(torrentId string) GetInfoResponse {
 	return apiResponse
 }
 
-func AddTorrent(filepath string) {
+func AddTorrent(filepath string) AddTorrentResponse {
 	url, err := url.Parse(config.GetAppConfig().RealDebrid.Url)
 	url = url.JoinPath("torrents/addTorrent")
 
@@ -194,5 +194,14 @@ func AddTorrent(filepath string) {
 		panic(errors.New("Unable to make request"))
 	}
 
-	// fmt.Println(resp.StatusCode)
+	defer resp.Body.Close()
+	bodyBytes, _ := io.ReadAll(resp.Body)
+
+	var apiResponse AddTorrentResponse
+	err = json.Unmarshal(bodyBytes, &apiResponse)
+	if err != nil {
+		panic(err)
+	}
+
+	return apiResponse
 }

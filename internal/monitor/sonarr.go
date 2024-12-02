@@ -2,6 +2,7 @@ package monitor
 
 import (
 	"log"
+	"os"
 	"sync"
 	"time"
 
@@ -84,7 +85,10 @@ func SonarrMonitorHandler(e fsnotify.Event, root string) {
 }
 
 func handleEvent(e sonarrEvent, filepath string) {
-	// TODO: Because of all the debouncing, should check if the file still exists
+	if _, err := os.Stat(filepath); err != nil {
+		panic(err)
+	}
+
 	switch e {
 	case CreateOrWrite:
 		handleNewSonarrFile(filepath)
@@ -105,8 +109,6 @@ func handleNewSonarrFile(filepath string) {
 		panic(err)
 	}
 
-	// fmt.Println(toProcess)
-
 	var torrentId string
 	log.Printf("[sonarr]\t\tadding to debrid: %s\n", filepath)
 	switch toProcess.FileType {
@@ -119,6 +121,7 @@ func handleNewSonarrFile(filepath string) {
 		log.Printf("[sonarr]\t\tselect all files for: %s\n", magnetResponse.ID)
 		// NOTE: this could be derived from the getInfo, it has a status to say it is waiting for file selection
 		// this can also be used to show downloading failed etc.
+		// Could move this down below into a state machine on a timer with a max time
 		debrid.SelectFiles(magnetResponse.ID, []string{})
 	}
 
@@ -131,6 +134,7 @@ func handleNewSonarrFile(filepath string) {
 		OriginalFilename: torrentInfo.OriginalFilename,
 		CompletedDir:     sonarrConfig.CompletedPath,
 		Service:          arr.Sonarr,
+		ProcessingPath:   toProcess.FullPath,
 	})
 	log.Printf("[sonarr]\t\tfinished handling: %s", toProcess.FilenameNoExt)
 }

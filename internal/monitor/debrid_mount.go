@@ -2,7 +2,6 @@ package monitor
 
 import (
 	"errors"
-	"fmt"
 	"io/fs"
 	"log"
 	"os"
@@ -39,21 +38,29 @@ type MonitorConfig struct {
 	Filename         string
 	OriginalFilename string
 	CompletedDir     string
+	ProcessingPath   string
 	Service          arr.ArrService
 }
 
-// TODO: also check if it is already availabe here
 func MonitorForDebridFiles(c MonitorConfig) error {
+	expectedPath := path.Join(config.GetAppConfig().RealDebrid.WatchPatch, c.Filename)
+
+	if _, err := os.Stat(expectedPath); err == nil {
+		log.Printf("[debrid-monitor]\t%s already exists, going to process", c.Filename)
+		handleNewFileInMount(expectedPath, c.Filename)
+		return nil
+	}
+
 	timeout := time.Duration(config.GetAppConfig().RealDebrid.MountTimeout) * time.Second
 	expiry := time.Now().Add(timeout)
 	log.Printf("[debrid-monitor]\tadding %s, watching until %v", c.Filename, expiry)
 	pathSet := getInstance()
-	fmt.Println(c)
 	meta := PathMeta{
 		Expiration:       expiry,
 		OriginalFileName: c.OriginalFilename,
 		Service:          c.Service,
 		CompletedDir:     c.CompletedDir,
+		ProcessingPath:   c.ProcessingPath,
 	}
 	pathSet.add(c.Filename, meta)
 
@@ -71,7 +78,10 @@ func handleNewFileInMount(filePath string, filename string) {
 		return
 	}
 
-	// TODO: Should we abort here if the file is no longer in processing? i.e. deleted, need to check what sonarr does
+	if _, err := os.Stat(pathMeta.ProcessingPath); err != nil {
+		log.Printf("[debrid-monitor]\t%s doesn't exist anymore, not processing", pathMeta.ProcessingPath)
+		return
+	}
 
 	log.Printf("[debrid-monitor]\tstarting linking of: %s", filename)
 
@@ -118,6 +128,7 @@ func handleNewFileInMount(filePath string, filename string) {
 
 	log.Printf("[debrid-monitor]\tnotifying %s processing complete of %s", pathMeta.Service.String(), filename)
 	// TODO: error handles
+	// TODO: Confirm refresh happened
 	switch pathMeta.Service {
 	case arr.Sonarr:
 		arr.SonarrRefreshMonitoredDownloads()

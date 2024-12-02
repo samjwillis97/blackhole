@@ -10,6 +10,7 @@ import (
 type PathMeta struct {
 	OriginalFileName string
 	Expiration       time.Time
+	ProcessingPath   string
 	CompletedDir     string
 	Service          arr.ArrService
 }
