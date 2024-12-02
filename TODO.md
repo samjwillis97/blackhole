@@ -2,9 +2,6 @@
 
 Attempting to order these in what actually needs to be done
 
-- [ ] Create events from files already in directory when starting monitors
-    - [ ] Event based
-    - [ ] Poll based
 - [ ] Secret validation
 - [ ] Fixup all the error handled (search for `panic(err)`)
 - [ ] Check usage of `go` in the event watch handler
@@ -24,3 +21,6 @@ Attempting to order these in what actually needs to be done
 - [X] Check if a file is still there before processing for Sonarr monitor due to debounce
 - [X] When adding file to Debrid Monitor, check if the file already exists
 - [X] Check if a file is still in processing before actually processing for Debrid mount monitor
+- [X] Create events from files already in directory when starting monitors
+    - [x] Event based
+    - [X] Poll based
