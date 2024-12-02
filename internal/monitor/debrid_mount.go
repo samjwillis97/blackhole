@@ -2,6 +2,7 @@ package monitor
 
 import (
 	"errors"
+	"fmt"
 	"io/fs"
 	"log"
 	"os"
@@ -34,18 +35,27 @@ func DebridMountMonitorHandler(e watcher.Event, root string) {
 	}
 }
 
+type MonitorConfig struct {
+	Filename         string
+	OriginalFilename string
+	CompletedDir     string
+	Service          arr.ArrService
+}
+
 // TODO: also check if it is already availabe here
-func MonitorForFiles(name string, completedDir string, service arr.ArrService) error {
+func MonitorForDebridFiles(c MonitorConfig) error {
 	timeout := time.Duration(config.GetAppConfig().RealDebrid.MountTimeout) * time.Second
 	expiry := time.Now().Add(timeout)
-	log.Printf("[debrid-monitor]\tadding %s, watching until %v", name, expiry)
+	log.Printf("[debrid-monitor]\tadding %s, watching until %v", c.Filename, expiry)
 	pathSet := getInstance()
+	fmt.Println(c)
 	meta := PathMeta{
-		Expiration:   expiry,
-		Service:      service,
-		CompletedDir: completedDir,
+		Expiration:       expiry,
+		OriginalFileName: c.OriginalFilename,
+		Service:          c.Service,
+		CompletedDir:     c.CompletedDir,
 	}
-	pathSet.add(name, meta)
+	pathSet.add(c.Filename, meta)
 
 	return nil
 }
@@ -53,9 +63,9 @@ func MonitorForFiles(name string, completedDir string, service arr.ArrService) e
 // TODO: on error handle properly making sure *arr knows there was an error
 func handleNewFileInMount(filePath string, filename string) {
 	pathSet := getInstance()
+	// FIXME: Eventually also check the originalfilename, I guess
 	pathMeta := pathSet.remove(filename)
 
-	// Should get and existss in single call with the lock
 	if (pathMeta == PathMeta{}) {
 		log.Printf("[debrid-monitor]\tnot monitoring file: %s", filename)
 		return

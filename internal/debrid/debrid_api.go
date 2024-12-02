@@ -20,6 +20,11 @@ type AddMagnetResponse struct {
 	URI string `json:"uri"`
 }
 
+type GetInfoResponse struct {
+	Filename         string `json:"filename"`
+	OriginalFilename string `json:"original_filename"`
+}
+
 func blessRequest(r *http.Request) *http.Request {
 	r.Header.Set("Authorization", fmt.Sprintf("Bearer %s", config.GetSecrets().DebridApiKey))
 
@@ -124,6 +129,40 @@ func SelectFiles(torrentId string, fileIds []string) {
 		log.Fatalf(string(bodyBytes))
 		panic(errors.New("Unable to make request"))
 	}
+}
+
+func GetInfo(torrentId string) GetInfoResponse {
+	url, err := url.Parse(config.GetAppConfig().RealDebrid.Url)
+	url = url.JoinPath(fmt.Sprintf("torrents/info/%s", torrentId))
+
+	req, err := http.NewRequest(http.MethodGet, url.String(), nil)
+	if err != nil {
+		panic(err)
+	}
+
+	req = blessRequest(req)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+
+	defer resp.Body.Close()
+	bodyBytes, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode >= 300 {
+		log.Fatalf(string(bodyBytes))
+		panic(errors.New("Unable to make request"))
+	}
+
+	var apiResponse GetInfoResponse
+	err = json.Unmarshal(bodyBytes, &apiResponse)
+	if err != nil {
+		panic(err)
+	}
+
+	return apiResponse
 }
 
 func AddTorrent(filepath string) {

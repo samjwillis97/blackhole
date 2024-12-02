@@ -105,7 +105,7 @@ func TestMountMonitorDirCreated(t *testing.T) {
 	})
 	defer cleanup(setupConfig)
 
-	monitor.MonitorForFiles(path.Base(setupConfig.ToLinkDir), setupConfig.CompletedDir, arr.Sonarr)
+	monitor.MonitorForDebridFiles(path.Base(setupConfig.ToLinkDir), setupConfig.CompletedDir, arr.Sonarr)
 
 	event := fsnotify.Event{
 		Name: path.Base(setupConfig.ToLinkDir),

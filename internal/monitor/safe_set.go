@@ -8,9 +8,10 @@ import (
 )
 
 type PathMeta struct {
-	Expiration   time.Time
-	CompletedDir string
-	Service      arr.ArrService
+	OriginalFileName string
+	Expiration       time.Time
+	CompletedDir     string
+	Service          arr.ArrService
 }
 
 type PathSet map[string]PathMeta

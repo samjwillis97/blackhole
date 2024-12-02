@@ -115,13 +115,15 @@ func eventWatchHandler(w *fsnotify.Watcher, s []MonitorSetting) {
 		select {
 		case event, ok := <-w.Events:
 			if !ok {
+				log.Printf("[fs-event-watcher]\tnot okay event received")
 				return
 			}
 
 			for _, setting := range s {
 				if strings.Contains(event.Name, setting.Directory) {
 					log.Printf("[fs-event-watcher]\t%s event for %s -> %s", event.Op.String(), event.Name, setting.Name)
-					setting.EventHandler(event, setting.Directory)
+					// FIXME: I dont like putting a `go` here, feels like there is something blocking the function
+					go setting.EventHandler(event, setting.Directory)
 				}
 			}
 		case err, ok := <-w.Errors:

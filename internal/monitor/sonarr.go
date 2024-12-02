@@ -107,21 +107,30 @@ func handleNewSonarrFile(filepath string) {
 
 	// fmt.Println(toProcess)
 
+	var torrentId string
 	log.Printf("[sonarr]\t\tadding to debrid: %s\n", filepath)
 	switch toProcess.FileType {
 	case torrents.TorrentFile:
+		// TODO: Finish handling here - need to find a torrent file to test with
 		debrid.AddTorrent(toProcess.FullPath)
 	case torrents.Magnet:
 		magnetResponse := debrid.AddMagnet(toProcess.FullPath)
+		torrentId = magnetResponse.ID
 		log.Printf("[sonarr]\t\tselect all files for: %s\n", magnetResponse.ID)
+		// NOTE: this could be derived from the getInfo, it has a status to say it is waiting for file selection
+		// this can also be used to show downloading failed etc.
 		debrid.SelectFiles(magnetResponse.ID, []string{})
 	}
 
-	log.Printf("[sonarr]\t\tadding to monitor: %s\n", toProcess.FilenameNoExt)
-	MonitorForFiles(toProcess.FilenameNoExt, sonarrConfig.CompletedPath, arr.Sonarr)
+	log.Printf("[sonarr]\t\tGetting torrent info for: %s\n", torrentId)
+	torrentInfo := debrid.GetInfo(torrentId)
 
-	// There will be some different handling dependant on whether
-	// it should be avaiable on "instant_availability" endpoint (dead on debrid)
-	// As well as if there is only a single item in the torrent, i Think this can be ignored though and let *arr handle
-
+	log.Printf("[sonarr]\t\tadding to monitor: %s\n", torrentInfo.Filename)
+	MonitorForDebridFiles(MonitorConfig{
+		Filename:         torrentInfo.Filename,
+		OriginalFilename: torrentInfo.OriginalFilename,
+		CompletedDir:     sonarrConfig.CompletedPath,
+		Service:          arr.Sonarr,
+	})
+	log.Printf("[sonarr]\t\tfinished handling: %s", toProcess.FilenameNoExt)
 }
