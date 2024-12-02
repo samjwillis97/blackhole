@@ -2,20 +2,20 @@
 
 Attempting to order these in what actually needs to be done
 
-- [ ] Check usage of `go` in the event watch handler
 - [ ] Create events from files already in directory when starting monitors
     - [ ] Event based
     - [ ] Poll based
+- [ ] Secret validation
+- [ ] Fixup all the error handled (search for `panic(err)`)
+- [ ] Check usage of `go` in the event watch handler
 - [ ] Create a central HTTP client with:
     - [ ] retries
     - [ ] logging
 - [ ] Confirm refresh of *arr after debrid mount symlinking
     - Unsure how to handle this
-- [ ] Secret validation
 - [ ] Better logging
 - [ ] Write better comments in tests
 - [ ] Fixup the Event based handlers `event.Name` it might be different on Darwin and Linux
-- [ ] Fixup all the error handled (search for `panic(err)`)
 - [ ] Notify *arr when an error occurs
 - [ ] Check original file name for debrid mount handler, like the other scripts
 - [ ] Use `cobra` to make command line entry point
