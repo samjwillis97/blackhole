@@ -8,8 +8,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-// TODO: Should restart certain things on config change
-
 var secretsSet bool = false
 var appSecrets Secrets
 
