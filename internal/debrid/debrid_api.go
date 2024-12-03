@@ -170,19 +170,22 @@ func GetInfo(torrentId string) (GetInfoResponse, error) {
 	return apiResponse, nil
 }
 
-func AddTorrent(filepath string) AddTorrentResponse {
+func AddTorrent(filepath string) (AddTorrentResponse, error) {
 	url, err := url.Parse(config.GetAppConfig().RealDebrid.Url)
+	if err != nil {
+		return AddTorrentResponse{}, err
+	}
 	url = url.JoinPath("torrents/addTorrent")
 
 	// There might be a better way of getting bytes into buffer
 	data, err := os.ReadFile(filepath)
 	if err != nil {
-		panic(err)
+		return AddTorrentResponse{}, err
 	}
 
 	req, err := http.NewRequest(http.MethodPut, url.String(), bytes.NewBuffer(data))
 	if err != nil {
-		panic(err)
+		return AddTorrentResponse{}, err
 	}
 
 	req = blessRequest(req)
@@ -190,13 +193,14 @@ func AddTorrent(filepath string) AddTorrentResponse {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		panic(err)
+		return AddTorrentResponse{}, err
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 300 {
-		panic(errors.New("Unable to make request"))
+		// TODO: Trace log
+		return AddTorrentResponse{}, errors.New(fmt.Sprintf("Unable to make request response code: %d", resp.StatusCode))
 	}
 
 	defer resp.Body.Close()
@@ -205,8 +209,8 @@ func AddTorrent(filepath string) AddTorrentResponse {
 	var apiResponse AddTorrentResponse
 	err = json.Unmarshal(bodyBytes, &apiResponse)
 	if err != nil {
-		panic(err)
+		return AddTorrentResponse{}, err
 	}
 
-	return apiResponse
+	return apiResponse, nil
 }

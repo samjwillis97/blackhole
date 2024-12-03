@@ -106,7 +106,9 @@ func handleNewSonarrFile(filepath string) {
 
 	toProcess, err := torrents.NewFileToProcess(filepath, sonarrConfig.ProcessingPath)
 	if err != nil {
-		panic(err)
+		log.Printf("[sonarr]\t\tencountered error: %s", err)
+		log.Printf("[sonarr]\t\tunable to process %s - exiting", filepath)
+		return
 	}
 
 	var torrentId string
@@ -114,7 +116,12 @@ func handleNewSonarrFile(filepath string) {
 	case torrents.TorrentFile:
 		log.Printf("[sonarr]\t\tadding torrent file to debrid: %s\n", filepath)
 		// TODO: Finish handling here - need to find a torrent file to test with
-		debrid.AddTorrent(toProcess.FullPath)
+		_, err = debrid.AddTorrent(toProcess.FullPath)
+		if err != nil {
+			log.Printf("[sonarr]\t\tencountered error: %s", err)
+			log.Printf("[sonarr]\t\tunable to process %s - exiting", filepath)
+			return
+		}
 	case torrents.Magnet:
 		log.Printf("[sonarr]\t\tadding magnet to debrid: %s\n", filepath)
 		magnetResponse, err := debrid.AddMagnet(toProcess.FullPath)
