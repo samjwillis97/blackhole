@@ -69,7 +69,7 @@ func AddMagnet(filepath string) (AddTorrentResponse, error) {
 	bodyBytes, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode >= 300 {
-		log.Fatalf(string(bodyBytes))
+		// TODO: Trace log
 		return AddTorrentResponse{}, errors.New(fmt.Sprintf("Unable to make request response code: %d", resp.StatusCode))
 	}
 
@@ -126,20 +126,23 @@ func SelectFiles(torrentId string, fileIds []string) error {
 	bodyBytes, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode >= 300 {
-		log.Fatalf(string(bodyBytes))
+		// TODO: Trace log
 		return errors.New(fmt.Sprintf("Unable to make request response code: %d", resp.StatusCode))
 	}
 
 	return nil
 }
 
-func GetInfo(torrentId string) GetInfoResponse {
+func GetInfo(torrentId string) (GetInfoResponse, error) {
 	url, err := url.Parse(config.GetAppConfig().RealDebrid.Url)
+	if err != nil {
+		return GetInfoResponse{}, err
+	}
 	url = url.JoinPath(fmt.Sprintf("torrents/info/%s", torrentId))
 
 	req, err := http.NewRequest(http.MethodGet, url.String(), nil)
 	if err != nil {
-		panic(err)
+		return GetInfoResponse{}, err
 	}
 
 	req = blessRequest(req)
@@ -147,24 +150,24 @@ func GetInfo(torrentId string) GetInfoResponse {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		panic(err)
+		return GetInfoResponse{}, err
 	}
 
 	defer resp.Body.Close()
 	bodyBytes, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode >= 300 {
-		log.Fatalf(string(bodyBytes))
-		panic(errors.New("Unable to make request"))
+		// TODO: Trace log
+		return GetInfoResponse{}, errors.New(fmt.Sprintf("Unable to make request response code: %d", resp.StatusCode))
 	}
 
 	var apiResponse GetInfoResponse
 	err = json.Unmarshal(bodyBytes, &apiResponse)
 	if err != nil {
-		panic(err)
+		return GetInfoResponse{}, err
 	}
 
-	return apiResponse
+	return apiResponse, nil
 }
 
 func AddTorrent(filepath string) AddTorrentResponse {

@@ -120,7 +120,7 @@ func handleNewSonarrFile(filepath string) {
 		magnetResponse, err := debrid.AddMagnet(toProcess.FullPath)
 		if err != nil {
 			log.Printf("[sonarr]\t\tencountered error: %s", err)
-			log.Printf("[sonarr]\t\tunable to process %s - exiting", toProcess.FullPath)
+			log.Printf("[sonarr]\t\tunable to process %s - exiting", filepath)
 			return
 		}
 
@@ -132,21 +132,31 @@ func handleNewSonarrFile(filepath string) {
 		err = debrid.SelectFiles(magnetResponse.ID, []string{})
 		if err != nil {
 			log.Printf("[sonarr]\t\tencountered error: %s", err)
-			log.Printf("[sonarr]\t\tunable to process %s - exiting", toProcess.FullPath)
+			log.Printf("[sonarr]\t\tunable to process %s - exiting", magnetResponse.ID)
 			return
 		}
 	}
 
 	log.Printf("[sonarr]\t\tGetting torrent info for: %s\n", torrentId)
-	torrentInfo := debrid.GetInfo(torrentId)
+	torrentInfo, err := debrid.GetInfo(torrentId)
+	if err != nil {
+		log.Printf("[sonarr]\t\tencountered error: %s", err)
+		log.Printf("[sonarr]\t\tunable to process %s - exiting", torrentId)
+		return
+	}
 
 	log.Printf("[sonarr]\t\tadding to monitor: %s\n", torrentInfo.Filename)
-	MonitorForDebridFiles(MonitorConfig{
+	err = MonitorForDebridFiles(MonitorConfig{
 		Filename:         torrentInfo.Filename,
 		OriginalFilename: torrentInfo.OriginalFilename,
 		CompletedDir:     sonarrConfig.CompletedPath,
 		Service:          arr.Sonarr,
 		ProcessingPath:   toProcess.FullPath,
 	})
+  if err != nil {
+		log.Printf("[sonarr]\t\tencountered error: %s", err)
+		log.Printf("[sonarr]\t\tunable to process %s - exiting", torrentId)
+		return
+  }
 	log.Printf("[sonarr]\t\tfinished handling: %s", toProcess.FilenameNoExt)
 }
