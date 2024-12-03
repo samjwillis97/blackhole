@@ -1,6 +1,8 @@
 package monitor
 
 import (
+	"errors"
+	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -35,13 +37,20 @@ func StartMonitoring(settings []MonitorSetting) (*fsnotify.Watcher, *watcher.Wat
 		}
 	}
 
-	eventBasedWatcher := createEventBasedWatcher(eventBasedMonitors)
-	pollBasedWatcher := createPollingBasedWatcher(pollingBasedMonitors)
+	eventBasedWatcher, err := createEventBasedWatcher(eventBasedMonitors)
+	if err != nil {
+		log.Fatalf("[fs-watcher]\tfailed to create event based watcher: %s", err)
+	}
+
+	pollBasedWatcher, err := createPollingBasedWatcher(pollingBasedMonitors)
+	if err != nil {
+		log.Fatalf("[fs-watcher]\tfailed to create poll based watcher: %s", err)
+	}
 
 	return eventBasedWatcher, pollBasedWatcher
 }
 
-func createPollingBasedWatcher(settings []MonitorSetting) *watcher.Watcher {
+func createPollingBasedWatcher(settings []MonitorSetting) (*watcher.Watcher, error) {
 	// Create
 	w := watcher.New()
 
@@ -57,7 +66,7 @@ func createPollingBasedWatcher(settings []MonitorSetting) *watcher.Watcher {
 		log.Printf("[fs-poll-watcher]\twatching: %s", setting.Directory)
 		err := w.Add(setting.Directory)
 		if err != nil {
-			panic(err)
+			return nil, errors.New(fmt.Sprintf("Failed to watch %s: %s", setting.Directory, err))
 		}
 	}
 
@@ -65,7 +74,7 @@ func createPollingBasedWatcher(settings []MonitorSetting) *watcher.Watcher {
 
 	log.Printf("[fs-poll-watcher]\tstarted")
 
-	return w
+	return w, nil
 }
 
 func pollWatchHandler(w *watcher.Watcher, s []MonitorSetting) {
@@ -79,19 +88,18 @@ func pollWatchHandler(w *watcher.Watcher, s []MonitorSetting) {
 				}
 			}
 		case err := <-w.Error:
-			panic(err)
+			log.Panicf("[fs-poll-watcher]\tencountered error: %s", err)
 		case <-w.Closed:
 			return
 		}
 	}
 }
 
-func createEventBasedWatcher(settings []MonitorSetting) *fsnotify.Watcher {
+func createEventBasedWatcher(settings []MonitorSetting) (*fsnotify.Watcher, error) {
 	// Create new event based watcher
 	eventWatcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		panic(err)
-		// log.Fatal(err)
+		return nil, errors.New(fmt.Sprintf("Failed to create event watcher: %s", err))
 	}
 
 	// Start listening for events.
@@ -101,13 +109,13 @@ func createEventBasedWatcher(settings []MonitorSetting) *fsnotify.Watcher {
 		log.Printf("[fs-event-watcher]\twatching: %s", setting.Directory)
 		err = eventWatcher.Add(setting.Directory)
 		if err != nil {
-			panic(err)
+			return nil, errors.New(fmt.Sprintf("Failed to watch %s: %s", setting.Directory, err))
 		}
 	}
 
 	log.Printf("[fs-event-watcher]\tstarted")
 
-	return eventWatcher
+	return eventWatcher, nil
 }
 
 func eventWatchHandler(w *fsnotify.Watcher, s []MonitorSetting) {
@@ -131,8 +139,7 @@ func eventWatchHandler(w *fsnotify.Watcher, s []MonitorSetting) {
 				return
 			}
 
-			panic(err)
-			// log.Println("error:", err)
+			log.Panicf("[fs-event-watcher]\tencountered error: %s", err)
 		}
 	}
 }

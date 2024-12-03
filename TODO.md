@@ -2,7 +2,11 @@
 
 Attempting to order these in what actually needs to be done
 
-- [ ] Fixup all the error handled (search for `panic(err)`)
+- [ ] Create events from files already in directory when starting monitors
+    - Need to re-work how these actually work
+    - [ ] Event based
+        - Sonarr should redrive based off of files in both watch path and processing path
+    - [ ] Poll based
 - [ ] Check usage of `go` in the event watch handler
 - [ ] Create a central HTTP client with:
     - [ ] retries
@@ -21,7 +25,5 @@ Attempting to order these in what actually needs to be done
 - [X] Check if a file is still there before processing for Sonarr monitor due to debounce
 - [X] When adding file to Debrid Monitor, check if the file already exists
 - [X] Check if a file is still in processing before actually processing for Debrid mount monitor
-- [X] Create events from files already in directory when starting monitors
-    - [x] Event based
-    - [X] Poll based
 - [X] Secret validation
+- [X] Fixup all the error handled (search for `panic(err)`)

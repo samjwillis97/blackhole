@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -123,7 +122,7 @@ func SelectFiles(torrentId string, fileIds []string) error {
 	}
 
 	defer resp.Body.Close()
-	bodyBytes, _ := io.ReadAll(resp.Body)
+	// bodyBytes, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode >= 300 {
 		// TODO: Trace log

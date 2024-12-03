@@ -87,7 +87,7 @@ func SonarrMonitorHandler(e fsnotify.Event, root string) {
 func handleEvent(e sonarrEvent, filepath string) {
 	if _, err := os.Stat(filepath); err != nil {
 		log.Printf("[sonarr]\t\tfile no longer exists: %s\n", filepath)
-    return
+		return
 	}
 
 	switch e {

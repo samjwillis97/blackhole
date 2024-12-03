@@ -139,7 +139,7 @@ func handleNewFileInMount(filePath string, filename string) {
 	case arr.Sonarr:
 		_, err = arr.SonarrRefreshMonitoredDownloads()
 		if err != nil {
-			log.Printf("[debrid-monitor]\tencountered error: %s", err)
+			log.Printf("[debrid-monitor]\tencountered error refreshing: %s", err)
 		}
 	}
 }
