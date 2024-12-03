@@ -34,13 +34,13 @@ func blessRequest(r *http.Request) *http.Request {
 // TODO: implement retries
 
 // Contents of a magnet file contain the magnet link
-func AddMagnet(filepath string) AddTorrentResponse {
+func AddMagnet(filepath string) (AddTorrentResponse, error) {
 	reqUrl, err := url.Parse(config.GetAppConfig().RealDebrid.Url)
 	reqUrl = reqUrl.JoinPath("torrents/addMagnet")
 
 	fileContent, err := os.ReadFile(filepath)
 	if err != nil {
-		panic(err)
+		return AddTorrentResponse{}, err
 	}
 
 	var body bytes.Buffer
@@ -48,12 +48,12 @@ func AddMagnet(filepath string) AddTorrentResponse {
 
 	err = writer.WriteField("magnet", string(fileContent))
 	if err != nil {
-		panic(err)
+		return AddTorrentResponse{}, err
 	}
 
 	req, err := http.NewRequest(http.MethodPost, reqUrl.String(), &body)
 	if err != nil {
-		panic(err)
+		return AddTorrentResponse{}, err
 	}
 
 	req = blessRequest(req)
@@ -62,7 +62,7 @@ func AddMagnet(filepath string) AddTorrentResponse {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		panic(err)
+		return AddTorrentResponse{}, err
 	}
 
 	defer resp.Body.Close()
@@ -70,16 +70,16 @@ func AddMagnet(filepath string) AddTorrentResponse {
 
 	if resp.StatusCode >= 300 {
 		log.Fatalf(string(bodyBytes))
-		panic(errors.New("Unable to make request"))
+		return AddTorrentResponse{}, errors.New(fmt.Sprintf("Unable to make request response code: %d", resp.StatusCode))
 	}
 
 	var apiResponse AddTorrentResponse
 	err = json.Unmarshal(bodyBytes, &apiResponse)
 	if err != nil {
-		panic(err)
+		return AddTorrentResponse{}, err
 	}
 
-	return apiResponse
+	return apiResponse, nil
 }
 
 func SelectFiles(torrentId string, fileIds []string) {

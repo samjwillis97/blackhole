@@ -116,7 +116,12 @@ func handleNewSonarrFile(filepath string) {
 		// TODO: Finish handling here - need to find a torrent file to test with
 		debrid.AddTorrent(toProcess.FullPath)
 	case torrents.Magnet:
-		magnetResponse := debrid.AddMagnet(toProcess.FullPath)
+		magnetResponse, err := debrid.AddMagnet(toProcess.FullPath)
+		if err != nil {
+			log.Printf("[sonarr]\t\tunable to process %s - exiting", toProcess.FullPath)
+			return
+		}
+
 		torrentId = magnetResponse.ID
 		log.Printf("[sonarr]\t\tselect all files for: %s\n", magnetResponse.ID)
 		// NOTE: this could be derived from the getInfo, it has a status to say it is waiting for file selection
