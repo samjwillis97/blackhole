@@ -10,6 +10,7 @@ Attempting to order these in what actually needs to be done
 - [ ] Confirm refresh of *arr after debrid mount symlinking
     - Unsure how to handle this
 - [ ] Better logging
+- [ ] Finish handling torrent files
 - [ ] Write better comments in tests
 - [ ] Fixup the Event based handlers `event.Name` it might be different on Darwin and Linux
 - [ ] Notify *arr when an error occurs
