@@ -110,14 +110,16 @@ func handleNewSonarrFile(filepath string) {
 	}
 
 	var torrentId string
-	log.Printf("[sonarr]\t\tadding to debrid: %s\n", filepath)
 	switch toProcess.FileType {
 	case torrents.TorrentFile:
+		log.Printf("[sonarr]\t\tadding torrent file to debrid: %s\n", filepath)
 		// TODO: Finish handling here - need to find a torrent file to test with
 		debrid.AddTorrent(toProcess.FullPath)
 	case torrents.Magnet:
+		log.Printf("[sonarr]\t\tadding magnet to debrid: %s\n", filepath)
 		magnetResponse, err := debrid.AddMagnet(toProcess.FullPath)
 		if err != nil {
+			log.Printf("[sonarr]\t\tencountered error: %s", err)
 			log.Printf("[sonarr]\t\tunable to process %s - exiting", toProcess.FullPath)
 			return
 		}
@@ -127,7 +129,12 @@ func handleNewSonarrFile(filepath string) {
 		// NOTE: this could be derived from the getInfo, it has a status to say it is waiting for file selection
 		// this can also be used to show downloading failed etc.
 		// Could move this down below into a state machine on a timer with a max time
-		debrid.SelectFiles(magnetResponse.ID, []string{})
+		err = debrid.SelectFiles(magnetResponse.ID, []string{})
+		if err != nil {
+			log.Printf("[sonarr]\t\tencountered error: %s", err)
+			log.Printf("[sonarr]\t\tunable to process %s - exiting", toProcess.FullPath)
+			return
+		}
 	}
 
 	log.Printf("[sonarr]\t\tGetting torrent info for: %s\n", torrentId)

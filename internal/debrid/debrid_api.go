@@ -82,10 +82,10 @@ func AddMagnet(filepath string) (AddTorrentResponse, error) {
 	return apiResponse, nil
 }
 
-func SelectFiles(torrentId string, fileIds []string) {
+func SelectFiles(torrentId string, fileIds []string) error {
 	reqUrl, err := url.Parse(config.GetAppConfig().RealDebrid.Url)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	reqUrl = reqUrl.JoinPath(fmt.Sprintf("torrents/selectFiles/%s", torrentId))
 
@@ -105,12 +105,12 @@ func SelectFiles(torrentId string, fileIds []string) {
 
 	err = writer.WriteField("files", filesToSelect)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	req, err := http.NewRequest(http.MethodPost, reqUrl.String(), &body)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	req = blessRequest(req)
@@ -119,7 +119,7 @@ func SelectFiles(torrentId string, fileIds []string) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	defer resp.Body.Close()
@@ -127,8 +127,10 @@ func SelectFiles(torrentId string, fileIds []string) {
 
 	if resp.StatusCode >= 300 {
 		log.Fatalf(string(bodyBytes))
-		panic(errors.New("Unable to make request"))
+		return errors.New(fmt.Sprintf("Unable to make request response code: %d", resp.StatusCode))
 	}
+
+	return nil
 }
 
 func GetInfo(torrentId string) GetInfoResponse {
