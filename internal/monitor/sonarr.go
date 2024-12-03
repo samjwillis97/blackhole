@@ -146,17 +146,12 @@ func handleNewSonarrFile(filepath string) {
 	}
 
 	log.Printf("[sonarr]\t\tadding to monitor: %s\n", torrentInfo.Filename)
-	err = MonitorForDebridFiles(MonitorConfig{
+	MonitorForDebridFiles(MonitorConfig{
 		Filename:         torrentInfo.Filename,
 		OriginalFilename: torrentInfo.OriginalFilename,
 		CompletedDir:     sonarrConfig.CompletedPath,
 		Service:          arr.Sonarr,
 		ProcessingPath:   toProcess.FullPath,
 	})
-  if err != nil {
-		log.Printf("[sonarr]\t\tencountered error: %s", err)
-		log.Printf("[sonarr]\t\tunable to process %s - exiting", torrentId)
-		return
-  }
 	log.Printf("[sonarr]\t\tfinished handling: %s", toProcess.FilenameNoExt)
 }

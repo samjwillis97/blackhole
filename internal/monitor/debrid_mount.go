@@ -42,13 +42,12 @@ type MonitorConfig struct {
 	Service          arr.ArrService
 }
 
-func MonitorForDebridFiles(c MonitorConfig) error {
+func MonitorForDebridFiles(c MonitorConfig) {
 	expectedPath := path.Join(config.GetAppConfig().RealDebrid.WatchPatch, c.Filename)
 
 	if _, err := os.Stat(expectedPath); err == nil {
 		log.Printf("[debrid-monitor]\t%s already exists, going to process", c.Filename)
 		handleNewFileInMount(expectedPath, c.Filename)
-		return nil
 	}
 
 	timeout := time.Duration(config.GetAppConfig().RealDebrid.MountTimeout) * time.Second
@@ -63,8 +62,6 @@ func MonitorForDebridFiles(c MonitorConfig) error {
 		ProcessingPath:   c.ProcessingPath,
 	}
 	pathSet.add(c.Filename, meta)
-
-	return nil
 }
 
 // TODO: on error handle properly making sure *arr knows there was an error
