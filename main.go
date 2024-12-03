@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"log"
 	"os"
 	"path"
@@ -14,7 +15,6 @@ import (
 func main() {
 	log.Println("[app]\t\tstarting")
 
-	// TODO: Also scan the folder for if files were added whilst not monitoring
 	monitorSetup := []monitor.MonitorSetting{}
 
 	monitorSetup = append(monitorSetup, setupSonarrMonitor())
@@ -31,7 +31,7 @@ func setupSonarrMonitor() monitor.MonitorSetting {
 	sonarrMonitorPath := config.GetAppConfig().Sonarr.WatchPath
 	currentSonarrFiles, err := os.ReadDir(sonarrMonitorPath)
 	if err != nil {
-		panic(err)
+		panic(errors.New("Failed to read sonarr monitor directory"))
 	}
 
 	log.Println("[app]\t\tstarting processing existing sonarr files")
@@ -58,7 +58,7 @@ func setupDebridMonitor() monitor.MonitorSetting {
 	debridMonitorPath := config.GetAppConfig().RealDebrid.WatchPatch
 	currentDebridFiles, err := os.ReadDir(debridMonitorPath)
 	if err != nil {
-		panic(err)
+		panic(errors.New("Failed to read debrid watch directory"))
 	}
 
 	log.Println("[app]\t\tstarting processing existing debrid files")

@@ -44,7 +44,7 @@ func InitializeAppConfig(v *viper.Viper) {
 	if v != nil {
 		err := v.Unmarshal(&conf)
 		if err != nil {
-			panic(err)
+			panic(errors.New("Failed to unmarshal app config"))
 		}
 		confSet = true
 		appConf = conf
@@ -68,7 +68,7 @@ func InitializeAppConfig(v *viper.Viper) {
 
 	err := v.Unmarshal(&conf)
 	if err != nil {
-		panic(err)
+		panic(errors.New("Failed to unmarshal app config"))
 	}
 
 	confSet = true
@@ -84,7 +84,7 @@ func InitializeSecrets(v *viper.Viper) {
 		err := v.Unmarshal(&secrets)
 
 		if err != nil {
-			panic(err)
+			panic(errors.New("Failed to unmarshal secrets"))
 		}
 
 		secretsSet = true
@@ -102,7 +102,7 @@ func InitializeSecrets(v *viper.Viper) {
 
 	err := v.Unmarshal(&secrets)
 	if err != nil {
-		panic(err)
+		panic(errors.New("Failed to unmarshal secrets"))
 	}
 
 	secretsSet = true
