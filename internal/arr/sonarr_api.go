@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -26,14 +27,14 @@ func blessSonarrRequest(r *http.Request) *http.Request {
 	return r
 }
 
-func SonarrRefreshMonitoredDownloads() SonarrCommandResponse {
+func SonarrRefreshMonitoredDownloads() (SonarrCommandResponse, error) {
 	url, err := url.Parse(config.GetAppConfig().Sonarr.Url)
 	url = url.JoinPath("/api/v3/command")
 
 	payload := []byte(`{"name":"RefreshMonitoredDownloads"}`)
 	req, err := http.NewRequest(http.MethodPost, url.String(), bytes.NewBuffer(payload))
 	if err != nil {
-		panic(err)
+		return SonarrCommandResponse{}, err
 	}
 
 	req = blessSonarrRequest(req)
@@ -41,13 +42,14 @@ func SonarrRefreshMonitoredDownloads() SonarrCommandResponse {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		panic(err)
+		return SonarrCommandResponse{}, err
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 300 {
-		panic(errors.New("Unable to make request"))
+		// TODO: Trace log
+		return SonarrCommandResponse{}, errors.New(fmt.Sprintf("Unable to make request response code: %d", resp.StatusCode))
 	}
 
 	defer resp.Body.Close()
@@ -56,8 +58,8 @@ func SonarrRefreshMonitoredDownloads() SonarrCommandResponse {
 	var apiResponse SonarrCommandResponse
 	err = json.Unmarshal(bodyBytes, &apiResponse)
 	if err != nil {
-		panic(err)
+		return SonarrCommandResponse{}, err
 	}
 
-	return apiResponse
+	return apiResponse, nil
 }

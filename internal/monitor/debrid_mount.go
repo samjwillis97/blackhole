@@ -84,9 +84,15 @@ func handleNewFileInMount(filePath string, filename string) {
 	log.Printf("[debrid-monitor]\tstarting linking of: %s", filename)
 
 	completedPath := path.Join(pathMeta.CompletedDir, filename)
-	os.Mkdir(completedPath, os.ModePerm)
+	err := os.Mkdir(completedPath, os.ModePerm)
+	if err != nil {
+		log.Printf("[debrid-monitor]\tencountered error: %s", err)
+		log.Printf("[debrid-monitor]\tunable to process %s - exiting", filename)
+		return
+	}
 
-	err := filepath.WalkDir(filePath, func(currentFile string, d fs.DirEntry, err error) error {
+	log.Printf("[debrid-monitor]\trecursively linking: %s", filename)
+	err = filepath.WalkDir(filePath, func(currentFile string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -121,7 +127,9 @@ func handleNewFileInMount(filePath string, filename string) {
 	})
 
 	if err != nil {
-		panic(err)
+		log.Printf("[debrid-monitor]\tencountered error: %s", err)
+		log.Printf("[debrid-monitor]\tunable to process %s - exiting", filename)
+		return
 	}
 
 	log.Printf("[debrid-monitor]\tnotifying %s processing complete of %s", pathMeta.Service.String(), filename)
@@ -129,6 +137,9 @@ func handleNewFileInMount(filePath string, filename string) {
 	// TODO: Confirm refresh happened
 	switch pathMeta.Service {
 	case arr.Sonarr:
-		arr.SonarrRefreshMonitoredDownloads()
+		_, err = arr.SonarrRefreshMonitoredDownloads()
+		if err != nil {
+			log.Printf("[debrid-monitor]\tencountered error: %s", err)
+		}
 	}
 }
