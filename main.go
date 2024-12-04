@@ -35,6 +35,8 @@ func setupSonarrMonitor() monitor.MonitorSetting {
 	}
 
 	log.Println("[app]\t\tstarting processing existing sonarr files")
+	// TODO: Make sure this works!!!!!!!!!!!! -- there are office files waiting now
+	log.Println(currentSonarrFiles)
 	for _, f := range currentSonarrFiles {
 		if f.IsDir() {
 			continue

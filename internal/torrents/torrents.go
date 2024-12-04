@@ -2,7 +2,6 @@ package torrents
 
 import (
 	"errors"
-	"log"
 	"os"
 	"path"
 	"strings"
@@ -26,7 +25,6 @@ type ToProcess struct {
 // file into the proccesing directory, creating the directory if
 // required. Then returning the new path back as well as the filename
 func NewFileToProcess(filePath string, processingLocation string) (ToProcess, error) {
-	log.Printf("[torrents]\t\tmoving %s to process\n", filePath)
 	_, filename := path.Split(filePath)
 	processingPath := path.Join(processingLocation, filename)
 

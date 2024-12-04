@@ -142,4 +142,11 @@ func handleNewFileInMount(filePath string, filename string) {
 			log.Printf("[debrid-monitor]\tencountered error refreshing: %s", err)
 		}
 	}
+
+	log.Printf("[debrid-monitor]\tremoving %s from processing", pathMeta.ProcessingPath)
+	err = os.Remove(pathMeta.ProcessingPath)
+	if err != nil {
+		log.Printf("[debrid-monitor]\tencountered error deleting processing file %s: %s", pathMeta.ProcessingPath, err)
+		return
+	}
 }

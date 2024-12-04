@@ -6,6 +6,7 @@ Attempting to order these in what actually needs to be done
     - Need to re-work how these actually work
     - [ ] Event based
         - Sonarr should redrive based off of files in both watch path and processing path
+        - This involves a state machine to handle it 
     - [ ] Poll based
 - [ ] Check usage of `go` in the event watch handler
 - [ ] Create a central HTTP client with:
