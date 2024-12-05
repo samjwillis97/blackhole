@@ -2,12 +2,19 @@
 
 Attempting to order these in what actually needs to be done
 
+- [ ] Handle what to do when a event timer runs out, like remove from processing..
+    - This can be done in the `cleanupExpiredItems` method
+    - Potentially pass a function in or something?
+- [ ] Investigate the instant availability endpoint.. or how to do similar
+    - Since it no longer exists, I wonder if I can just check if the state goes to downloading
+    - If it does this is pretty much guaranteed not to be instant available
 - [ ] Create events from files already in directory when starting monitors
     - Need to re-work how these actually work
     - [ ] Event based
         - Sonarr should redrive based off of files in both watch path and processing path
         - This involves a state machine to handle it 
     - [ ] Poll based
+- [ ] Re-run things on a timer..
 - [ ] Check usage of `go` in the event watch handler
 - [ ] Create a central HTTP client with:
     - [ ] retries

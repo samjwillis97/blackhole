@@ -49,6 +49,25 @@ func NewFileToProcess(filePath string, processingLocation string) (ToProcess, er
 	}, nil
 }
 
+func FromFileInProcessing(filePath string) (ToProcess, error) {
+	_, filename := path.Split(filePath)
+
+	torrentType, err := getTorrentType(filePath)
+	if err != nil {
+		return ToProcess{}, err
+	}
+
+	ext := path.Ext(filename)
+	filenameNoExt := strings.TrimSuffix(filename, ext)
+
+	return ToProcess{
+		FullPath:      filePath,
+		Filename:      filename,
+		FilenameNoExt: filenameNoExt,
+		FileType:      torrentType,
+	}, nil
+}
+
 func getTorrentType(filename string) (TorrentType, error) {
 	if path.Ext(filename) == ".torrent" {
 		return TorrentFile, nil

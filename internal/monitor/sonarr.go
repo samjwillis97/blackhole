@@ -267,7 +267,11 @@ func handleNewSonarrFile(filepath string) {
 		State:       New,
 	}
 
-	for stateMachineItem.State != Complete {
-		stateMachineItem.handle()
+	ExecuteStateMachine(stateMachineItem)
+}
+
+func ExecuteStateMachine(item SonarrItem) {
+	for item.State != Complete {
+		item.handle()
 	}
 }

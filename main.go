@@ -10,6 +10,7 @@ import (
 	"github.com/radovskyb/watcher"
 	"github.com/samjwillis97/sams-blackhole/internal/config"
 	"github.com/samjwillis97/sams-blackhole/internal/monitor"
+	"github.com/samjwillis97/sams-blackhole/internal/torrents"
 )
 
 func main() {
@@ -35,18 +36,42 @@ func setupSonarrMonitor() monitor.MonitorSetting {
 	}
 
 	log.Println("[app]\t\tstarting processing existing sonarr files")
-	// TODO: Make sure this works!!!!!!!!!!!! -- there are office files waiting now
-	log.Println(currentSonarrFiles)
 	for _, f := range currentSonarrFiles {
 		if f.IsDir() {
 			continue
 		}
 
+		pathToProcess := path.Join(sonarrMonitorPath, f.Name())
+		log.Printf("[app]\t\tprocessing %s", pathToProcess)
 		monitor.SonarrMonitorHandler(fsnotify.Event{
-			Name: path.Join(sonarrMonitorPath, f.Name()),
+			Name: pathToProcess,
 			Op:   fsnotify.Create,
 		}, sonarrMonitorPath)
 	}
+
+	sonarrProcessingPath := config.GetAppConfig().Sonarr.ProcessingPath
+	sonarrFilesToResume, err := os.ReadDir(sonarrProcessingPath)
+	if err != nil {
+		panic(errors.New("Failed to read sonarr processing directory"))
+	}
+
+	log.Println("[app]\t\tresuming processing existing sonarr files")
+	for _, f := range sonarrFilesToResume {
+		if f.IsDir() {
+			continue
+		}
+
+		pathToProcess := path.Join(sonarrProcessingPath, f.Name())
+		log.Printf("[app]\t\tresuming %s", pathToProcess)
+		torrentInfo, _ := torrents.FromFileInProcessing(pathToProcess)
+		stateMachineItem := monitor.SonarrItem{
+			State:   monitor.InProcessing,
+			Torrent: torrentInfo,
+		}
+
+		monitor.ExecuteStateMachine(stateMachineItem)
+	}
+
 	log.Println("[app]\t\tfinished processing existing sonarr files")
 
 	return monitor.MonitorSetting{
