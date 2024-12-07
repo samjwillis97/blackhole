@@ -19,9 +19,26 @@ type AddTorrentResponse struct {
 	URI string `json:"uri"`
 }
 
+type DebridStatus string
+
+const (
+	Downloaded           DebridStatus = "downloaded"
+	MagnetError                       = "magnet_error"
+	MagnetConversion                  = "magnet_conversion"
+	WaitingFileSelection              = "waiting_files_selection"
+	Queued                            = "queued"
+	Downloading                       = "downloading"
+	Error                             = "error"
+	Virus                             = "virus"
+	Compressing                       = "compressing"
+	Uploading                         = "uploading"
+	Dead                              = "dead"
+)
+
 type GetInfoResponse struct {
-	Filename         string `json:"filename"`
-	OriginalFilename string `json:"original_filename"`
+	Filename         string       `json:"filename"`
+	OriginalFilename string       `json:"original_filename"`
+	Status           DebridStatus `json:"status"`
 }
 
 func blessRequest(r *http.Request) *http.Request {
@@ -33,19 +50,13 @@ func blessRequest(r *http.Request) *http.Request {
 // TODO: implement retries
 
 // Contents of a magnet file contain the magnet link
-func AddMagnet(filepath string) (AddTorrentResponse, error) {
+func AddMagnet(magnetLink string) (AddTorrentResponse, error) {
 	reqUrl, err := url.Parse(config.GetAppConfig().RealDebrid.Url)
 	reqUrl = reqUrl.JoinPath("torrents/addMagnet")
 
-	fileContent, err := os.ReadFile(filepath)
-	if err != nil {
-		return AddTorrentResponse{}, err
-	}
-
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
-
-	err = writer.WriteField("magnet", string(fileContent))
+	err = writer.WriteField("magnet", magnetLink)
 	if err != nil {
 		return AddTorrentResponse{}, err
 	}

@@ -2,6 +2,7 @@ package monitor
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"sync"
@@ -34,7 +35,7 @@ const (
 	New SonarrState = iota
 	InProcessing
 	WaitingFileSelection
-	AddedToDebrid
+	AddedToDebrid // TODO: Better name for this
 	Complete
 	Failed
 )
@@ -50,11 +51,11 @@ type SonarrItem struct {
 	InitialPath string
 	State       SonarrState
 	TorrentId   string
-	DebridInfo  debrid.GetInfoResponse // FIXME: Will need this for handling select files
 	Torrent     torrents.ToProcess
 	err         error
 }
 
+// TODO: Some validation to make sure state changes, to prevent looping
 func (s *SonarrItem) handle() {
 	switch s.State {
 	case New:
@@ -62,7 +63,9 @@ func (s *SonarrItem) handle() {
 	case InProcessing:
 		s.onProcessingItem()
 	case AddedToDebrid:
-		s.onAddedToDebrid()
+		s.handleDebridState()
+	case WaitingFileSelection:
+		s.onWaitingForFileSelection()
 	case Failed:
 		s.onFailure()
 	case Complete:
@@ -73,8 +76,6 @@ func (s *SonarrItem) handle() {
 func (s *SonarrItem) getBestFileName() string {
 	if (s.Torrent != torrents.ToProcess{}) {
 		return s.Torrent.FullPath
-	} else if (s.DebridInfo != debrid.GetInfoResponse{}) {
-		return s.DebridInfo.Filename
 	} else if s.TorrentId != "" {
 		return s.TorrentId
 	} else if s.InitialPath != "" {
@@ -115,15 +116,23 @@ func (s *SonarrItem) onProcessingItem() {
 	case torrents.TorrentFile:
 		log.Printf("[sonarr]\t\tadding torrent file to debrid: %s\n", s.Torrent.FullPath)
 		// TODO: Finish handling here - need to find a torrent file to test with
-		_, err := debrid.AddTorrent(s.Torrent.FullPath)
+		torrentResponse, err := debrid.AddTorrent(s.Torrent.FullPath)
 		if err != nil {
 			s.err = err
 			s.State = Failed
 			return
 		}
+		s.TorrentId = torrentResponse.ID
 	case torrents.Magnet:
 		log.Printf("[sonarr]\t\tadding magnet to debrid: %s\n", s.Torrent.FullPath)
-		magnetResponse, err := debrid.AddMagnet(s.Torrent.FullPath)
+		magnetLink, err := s.Torrent.GetMagnetLink()
+		if err != nil {
+			s.err = err
+			s.State = Failed
+			return
+		}
+
+		magnetResponse, err := debrid.AddMagnet(magnetLink)
 		if err != nil {
 			s.err = err
 			s.State = Failed
@@ -131,20 +140,18 @@ func (s *SonarrItem) onProcessingItem() {
 		}
 
 		s.TorrentId = magnetResponse.ID
-
-		log.Printf("[sonarr]\t\tselect all files for: %s\n", s.TorrentId)
-		// NOTE: this could be derived from the getInfo, it has a status to say it is waiting for file selection
-		// this can also be used to show downloading failed etc.
-		// Could move this down below into a state machine on a timer with a max time
-		err = debrid.SelectFiles(s.TorrentId, []string{})
-		if err != nil {
-			s.err = err
-			s.State = Failed
-			return
-		}
 	}
 
-	log.Printf("[sonarr]\t\tGetting torrent info for: %s\n", s.TorrentId)
+	s.State = AddedToDebrid
+}
+
+func (s *SonarrItem) handleDebridState() {
+	if s.TorrentId == "" {
+		s.err = errors.New("Missing debrid torrent ID")
+		s.State = Failed
+		return
+	}
+
 	torrentInfo, err := debrid.GetInfo(s.TorrentId)
 	if err != nil {
 		s.err = err
@@ -152,31 +159,55 @@ func (s *SonarrItem) onProcessingItem() {
 		return
 	}
 
-	s.DebridInfo = torrentInfo
-	s.State = AddedToDebrid
-}
-
-func (s *SonarrItem) onAddedToDebrid() {
-	if (s.DebridInfo == debrid.GetInfoResponse{}) {
-		s.err = errors.New("Missing debrid torrent info")
+	switch torrentInfo.Status {
+	case debrid.WaitingFileSelection:
+		s.State = WaitingFileSelection
+		return
+	case debrid.Downloading:
+		// TODO: Flag this as only if instant_availabiltiy is desired
+		// If it is downloading I will need something to periodically check debrid waiting for completion,
+		// then can be moved to the other monitor
+		s.err = errors.New("File is not instantly available")
+		s.State = Failed
+		return
+	case debrid.Downloaded:
+		log.Printf("[sonarr]\t\tadding to monitor: %s\n", torrentInfo.Filename)
+		sonarrConfig := config.GetAppConfig().Sonarr
+		MonitorForDebridFiles(MonitorConfig{
+			Filename:         torrentInfo.Filename,
+			OriginalFilename: torrentInfo.OriginalFilename,
+			CompletedDir:     sonarrConfig.CompletedPath,
+			Service:          arr.Sonarr,
+			ProcessingPath:   s.Torrent.FullPath,
+		})
+		s.State = Complete
+	default:
+		s.err = errors.New(fmt.Sprintf("Unexpected debrid status - %s", torrentInfo.Status))
 		s.State = Failed
 		return
 	}
 
-	log.Printf("[sonarr]\t\tadding to monitor: %s\n", s.DebridInfo.Filename)
-	sonarrConfig := config.GetAppConfig().Sonarr
-	MonitorForDebridFiles(MonitorConfig{
-		Filename:         s.DebridInfo.Filename,
-		OriginalFilename: s.DebridInfo.OriginalFilename,
-		CompletedDir:     sonarrConfig.CompletedPath,
-		Service:          arr.Sonarr,
-		ProcessingPath:   s.Torrent.FullPath,
-	})
+}
 
-	s.State = Complete
+func (s *SonarrItem) onWaitingForFileSelection() {
+	if s.TorrentId == "" {
+		s.err = errors.New("Missing debrid torrent ID")
+		s.State = Failed
+	}
+
+	log.Printf("[sonarr]\t\tselecting all files for: %s\n", s.TorrentId)
+	err := debrid.SelectFiles(s.TorrentId, []string{})
+	if err != nil {
+		s.err = err
+		s.State = Failed
+		return
+	}
+
+	s.State = AddedToDebrid
 }
 
 func (s *SonarrItem) onFailure() {
+	// TODO: Notify sonarr of the failure
 	log.Printf("[sonarr]\t\tencountered error: %s", s.err)
 	log.Printf("[sonarr]\t\tunable to process %s - exiting", s.getBestFileName())
 	s.State = Complete

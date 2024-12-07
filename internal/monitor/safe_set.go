@@ -1,10 +1,12 @@
 package monitor
 
 import (
-	"github.com/samjwillis97/sams-blackhole/internal/arr"
 	"log"
+	"os"
 	"sync"
 	"time"
+
+	"github.com/samjwillis97/sams-blackhole/internal/arr"
 )
 
 type PathMeta struct {
@@ -93,8 +95,13 @@ func (s *Monitors) cleanupExpiredItems() {
 
 	for k, meta := range s.set {
 		if now.After(meta.Expiration) {
-			log.Printf("Removing %s from monitoring\n", k)
+			log.Printf("[debrid-monitor]\tremoving %s from monitoring and processing\n", k)
+			// TODO: Notify *arr of failure
 			delete(s.set, k)
+			err := os.Remove(meta.ProcessingPath)
+			if err != nil {
+				log.Printf("[debrid-monitor]\terror occured deleting %s from processing: %s\n", k, err)
+			}
 		}
 	}
 }

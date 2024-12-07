@@ -5,6 +5,7 @@ Attempting to order these in what actually needs to be done
 - [ ] Handle what to do when a event timer runs out, like remove from processing..
     - This can be done in the `cleanupExpiredItems` method
     - Potentially pass a function in or something?
+- [ ] Notify *arr ron failure
 - [ ] Investigate the instant availability endpoint.. or how to do similar
     - Since it no longer exists, I wonder if I can just check if the state goes to downloading
     - If it does this is pretty much guaranteed not to be instant available
