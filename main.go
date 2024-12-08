@@ -6,7 +6,6 @@ import (
 	"os"
 	"path"
 
-	"github.com/fsnotify/fsnotify"
 	"github.com/radovskyb/watcher"
 	"github.com/samjwillis97/sams-blackhole/internal/config"
 	"github.com/samjwillis97/sams-blackhole/internal/monitor"
@@ -43,10 +42,10 @@ func setupSonarrMonitor() monitor.MonitorSetting {
 
 		pathToProcess := path.Join(sonarrMonitorPath, f.Name())
 		log.Printf("[app]\t\tprocessing %s", pathToProcess)
-		monitor.SonarrMonitorHandler(fsnotify.Event{
-			Name: pathToProcess,
-			Op:   fsnotify.Create,
-		}, sonarrMonitorPath)
+		monitor.ExecuteStateMachine(monitor.SonarrItem{
+			InitialPath: pathToProcess,
+			State:       monitor.New,
+		})
 	}
 
 	sonarrProcessingPath := config.GetAppConfig().Sonarr.ProcessingPath

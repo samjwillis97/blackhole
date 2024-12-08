@@ -45,11 +45,6 @@ type MonitorConfig struct {
 func MonitorForDebridFiles(c MonitorConfig) {
 	expectedPath := path.Join(config.GetAppConfig().RealDebrid.WatchPatch, c.Filename)
 
-	if _, err := os.Stat(expectedPath); err == nil {
-		log.Printf("[debrid-monitor]\t%s already exists, going to process", c.Filename)
-		handleNewFileInMount(expectedPath, c.Filename)
-	}
-
 	timeout := time.Duration(config.GetAppConfig().RealDebrid.MountTimeout) * time.Second
 	expiry := time.Now().Add(timeout)
 	log.Printf("[debrid-monitor]\tadding %s, watching until %v", c.Filename, expiry)
@@ -62,6 +57,12 @@ func MonitorForDebridFiles(c MonitorConfig) {
 		ProcessingPath:   c.ProcessingPath,
 	}
 	pathSet.add(c.Filename, meta)
+
+	if _, err := os.Stat(expectedPath); err == nil {
+		log.Printf("[debrid-monitor]\t%s already exists, going to process", c.Filename)
+		handleNewFileInMount(expectedPath, c.Filename)
+		return
+	}
 }
 
 // TODO: on error handle properly making sure *arr knows there was an error

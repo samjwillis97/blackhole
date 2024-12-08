@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"slices"
 	"sync"
 	"time"
 
@@ -49,6 +50,7 @@ const (
 // AddToDebrid -> SelectFile (Based on getInfo response)
 type SonarrItem struct {
 	InitialPath string
+	startTime   time.Time
 	State       SonarrState
 	TorrentId   string
 	Torrent     torrents.ToProcess
@@ -124,7 +126,7 @@ func (s *SonarrItem) onProcessingItem() {
 		}
 		s.TorrentId = torrentResponse.ID
 	case torrents.Magnet:
-		log.Printf("[sonarr]\t\tadding magnet to debrid: %s\n", s.Torrent.FullPath)
+		log.Printf("[sonarr]\t\tgetting magnet link for: %s\n", s.Torrent.FullPath)
 		magnetLink, err := s.Torrent.GetMagnetLink()
 		if err != nil {
 			s.err = err
@@ -132,6 +134,7 @@ func (s *SonarrItem) onProcessingItem() {
 			return
 		}
 
+		log.Printf("[sonarr]\t\tadding magnet to debrid: %s\n", s.Torrent.FullPath)
 		magnetResponse, err := debrid.AddMagnet(magnetLink)
 		if err != nil {
 			s.err = err
@@ -159,15 +162,19 @@ func (s *SonarrItem) handleDebridState() {
 		return
 	}
 
+	log.Printf("[sonarr]\t\tdebrid status of %s = %s", s.getBestFileName(), torrentInfo.Status)
 	switch torrentInfo.Status {
 	case debrid.WaitingFileSelection:
 		s.State = WaitingFileSelection
+		return
+	case debrid.Queued:
+		time.Sleep(1 * time.Second)
 		return
 	case debrid.Downloading:
 		// TODO: Flag this as only if instant_availabiltiy is desired
 		// If it is downloading I will need something to periodically check debrid waiting for completion,
 		// then can be moved to the other monitor
-		s.err = errors.New("File is not instantly available")
+		s.err = errors.New(fmt.Sprintf("%s is not instantly available", s.getBestFileName()))
 		s.State = Failed
 		return
 	case debrid.Downloaded:
@@ -186,7 +193,6 @@ func (s *SonarrItem) handleDebridState() {
 		s.State = Failed
 		return
 	}
-
 }
 
 func (s *SonarrItem) onWaitingForFileSelection() {
@@ -195,7 +201,7 @@ func (s *SonarrItem) onWaitingForFileSelection() {
 		s.State = Failed
 	}
 
-	log.Printf("[sonarr]\t\tselecting all files for: %s\n", s.TorrentId)
+	log.Printf("[sonarr]\t\tselecting all files for: %s - %s\n", s.TorrentId, s.getBestFileName())
 	err := debrid.SelectFiles(s.TorrentId, []string{})
 	if err != nil {
 		s.err = err
@@ -207,14 +213,60 @@ func (s *SonarrItem) onWaitingForFileSelection() {
 }
 
 func (s *SonarrItem) onFailure() {
-	// TODO: Notify sonarr of the failure
 	log.Printf("[sonarr]\t\tencountered error: %s", s.err)
-	log.Printf("[sonarr]\t\tunable to process %s - exiting", s.getBestFileName())
+	log.Printf("[sonarr]\t\tunable to process %s - removing", s.getBestFileName())
+
+	if s.TorrentId != "" {
+		err := debrid.Remove(s.TorrentId)
+		if err != nil {
+			log.Printf("[sonarr]\t\tfailed to remove from debrid: %s - %s", s.getBestFileName(), err)
+		}
+		log.Printf("[sonarr]\t\tsuccessfully removed %s from debrid", s.getBestFileName())
+	}
+
+	err := os.Remove(s.Torrent.FullPath)
+	if err != nil {
+		log.Printf("[sonarr]\t\tfailed to remove from processing: %s", s.getBestFileName())
+	}
+
+	s.removeFromSonarr()
+	log.Printf("[sonarr]\t\tsuccessfully removed %s from sonarr", s.getBestFileName())
+
+	// TODO: remove from blocklist after sometime.. not sure how to manage this
+
 	s.State = Complete
 }
 
 func (s *SonarrItem) onCompletion() {
 	log.Printf("[sonarr]\t\tfinished handling: %s", s.getBestFileName())
+}
+
+func (s *SonarrItem) removeFromSonarr() {
+	hash, err := s.Torrent.GetMagnetHash()
+	if err != nil {
+		log.Printf("[sonarr]\t\tfailed to get hash for: %s", s.getBestFileName())
+		return
+	}
+
+	history, err := arr.SonarrGetHistory(50)
+	if err != nil {
+		log.Printf("[sonarr]\t\tfailed to get history for: %s", s.getBestFileName())
+		return
+	}
+
+	toRemove := slices.IndexFunc(history.Records, func(item arr.SonarrHistoryItem) bool {
+		return item.EventType == arr.Grabbed && item.Data.TorrentInfoHash == hash
+	})
+	if toRemove == -1 {
+		log.Printf("[sonarr]\t\tcould not find hash %s in history for %s", hash, s.getBestFileName())
+		return
+	}
+
+	err = arr.SonarrFailHistoryItem(history.Records[toRemove].ID)
+	if toRemove == -1 {
+		log.Printf("[sonarr]\t\tfailed to fail history item with id %d - %s", history.Records[toRemove].ID, s.getBestFileName())
+		return
+	}
 }
 
 func sonarrEventFromFileEvent(e fsnotify.Event) sonarrEvent {
@@ -302,7 +354,15 @@ func handleNewSonarrFile(filepath string) {
 }
 
 func ExecuteStateMachine(item SonarrItem) {
+	timeoutDuration := 30 * time.Second
+
+	item.startTime = time.Now()
 	for item.State != Complete {
+		if time.Now().After(item.startTime.Add(timeoutDuration)) {
+			item.err = errors.New("Timed out")
+			item.State = Failed
+		}
+		// Check if timed out, if it has error out
 		item.handle()
 	}
 }

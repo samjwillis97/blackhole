@@ -134,9 +134,9 @@ func SonarrGetHistory(pagesize int) (SonarrHistoryResponse, error) {
 }
 
 // Have to get the ID from the history endpoint, will investigate what the mapping is
-func SonarrFailHistoryItem(id string) error {
+func SonarrFailHistoryItem(id int) error {
 	url, err := url.Parse(config.GetAppConfig().Sonarr.Url)
-	url = url.JoinPath("/api/v3/history/failed", id)
+	url = url.JoinPath("/api/v3/history/failed", fmt.Sprintf("%d", id))
 
 	req, err := http.NewRequest(http.MethodPost, url.String(), nil)
 	if err != nil {

@@ -224,3 +224,31 @@ func AddTorrent(filepath string) (AddTorrentResponse, error) {
 
 	return apiResponse, nil
 }
+
+func Remove(id string) error {
+	url, err := url.Parse(config.GetAppConfig().RealDebrid.Url)
+	if err != nil {
+		return err
+	}
+	url = url.JoinPath(fmt.Sprintf("torrents/delete/%s", id))
+
+	req, err := http.NewRequest(http.MethodDelete, url.String(), nil)
+	if err != nil {
+		return err
+	}
+
+	req = blessRequest(req)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != 204 {
+		// TODO: Trace log
+		return errors.New(fmt.Sprintf("Failed to delete with status code: %d", resp.StatusCode))
+	}
+
+	return nil
+}
