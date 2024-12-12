@@ -1,7 +1,6 @@
-package monitor_test
+package sonarr_test
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/samjwillis97/sams-blackhole/internal/config"
 	"github.com/samjwillis97/sams-blackhole/internal/monitor"
+	"github.com/samjwillis97/sams-blackhole/internal/monitor/sonarr"
 	"github.com/samjwillis97/sams-blackhole/internal/torrents"
 	"github.com/spf13/viper"
 )
@@ -59,7 +59,7 @@ func TestNewMagnetFileCreated2(t *testing.T) {
 	sonarrProcessingPath := createProcessingDir2(rootDir)
 	sonarrCompletedPath := path.Join(rootDir, "completed_test")
 
-  hasMadeFirstInfoRequest := false
+	hasMadeFirstInfoRequest := false
 
 	debridId := "123"
 
@@ -86,15 +86,15 @@ func TestNewMagnetFileCreated2(t *testing.T) {
 				t.Errorf("Expected a 'GET', got %s", r.Method)
 			}
 			w.WriteHeader(http.StatusOK)
-      status := "queued"
-      if (hasMadeFirstInfoRequest) {
-        status = "downloaded"
-      }
+			status := "queued"
+			if hasMadeFirstInfoRequest {
+				status = "downloaded"
+			}
 			w.Write([]byte(fmt.Sprintf(`{
         "filename": "%s",
         "status": "%s"
       }`, createdFile, status)))
-      hasMadeFirstInfoRequest = true
+			hasMadeFirstInfoRequest = true
 		default:
 			t.Errorf("Unexpected request to '%s'", r.URL.Path)
 			w.WriteHeader(404)
@@ -113,12 +113,7 @@ func TestNewMagnetFileCreated2(t *testing.T) {
 	mockSecretViper.Set("DEBRID_API_KEY", debridapikey)
 	config.InitializeSecrets(mockSecretViper)
 
-	item := monitor.NewSonarrTorrent()
-	item.IngestedPath = path.Join(rootDir, createdFile)
-	err := item.FSM.Event(context.Background(), "torrentFound")
-	if err != nil {
-		t.Errorf("State machine error encountered %s", err)
-	}
+	err := sonarr.NewTorrentFile(path.Join(rootDir, createdFile))
 
 	processingFile := path.Join(sonarrProcessingPath, createdFile)
 	_, err = os.Stat(processingFile)

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"log"
 	"os"
@@ -10,7 +9,7 @@ import (
 	"github.com/radovskyb/watcher"
 	"github.com/samjwillis97/sams-blackhole/internal/config"
 	"github.com/samjwillis97/sams-blackhole/internal/monitor"
-	"github.com/samjwillis97/sams-blackhole/internal/torrents"
+	"github.com/samjwillis97/sams-blackhole/internal/monitor/sonarr"
 )
 
 func main() {
@@ -29,26 +28,6 @@ func main() {
 }
 
 func setupSonarrMonitor() monitor.MonitorSetting {
-	sonarrMonitorPath := config.GetAppConfig().Sonarr.WatchPath
-	currentSonarrFiles, err := os.ReadDir(sonarrMonitorPath)
-	if err != nil {
-		panic(errors.New("Failed to read sonarr monitor directory"))
-	}
-
-	log.Println("[app]\t\tstarting processing existing sonarr files")
-	for _, f := range currentSonarrFiles {
-		if f.IsDir() {
-			continue
-		}
-
-		pathToProcess := path.Join(sonarrMonitorPath, f.Name())
-		log.Printf("[app]\t\tprocessing %s", pathToProcess)
-		sonarrTorrent := monitor.NewSonarrTorrent(pathToProcess)
-		if err := sonarrTorrent.FSM.Event(context.Background(), "torrentFound"); err != nil {
-			log.Printf("Failed to process %s: %s", pathToProcess, err)
-		}
-	}
-
 	sonarrProcessingPath := config.GetAppConfig().Sonarr.ProcessingPath
 	sonarrFilesToResume, err := os.ReadDir(sonarrProcessingPath)
 	if err != nil {
@@ -63,9 +42,28 @@ func setupSonarrMonitor() monitor.MonitorSetting {
 
 		pathToProcess := path.Join(sonarrProcessingPath, f.Name())
 		log.Printf("[app]\t\tresuming %s", pathToProcess)
-		torrentInfo, _ := torrents.FromFileInProcessing(pathToProcess)
-		sonarrTorrent := monitor.SonarrTorrentFromProcessing(torrentInfo)
-		if err := sonarrTorrent.FSM.Event(context.Background(), "addToDebrid"); err != nil {
+		err := sonarr.ResumeProcessingFile(pathToProcess)
+		if err != nil {
+			log.Printf("Failed to process %s: %s", pathToProcess, err)
+		}
+	}
+
+	sonarrMonitorPath := config.GetAppConfig().Sonarr.WatchPath
+	currentSonarrFiles, err := os.ReadDir(sonarrMonitorPath)
+	if err != nil {
+		panic(errors.New("Failed to read sonarr monitor directory"))
+	}
+
+	log.Println("[app]\t\tstarting processing existing sonarr files")
+	for _, f := range currentSonarrFiles {
+		if f.IsDir() {
+			continue
+		}
+
+		pathToProcess := path.Join(sonarrMonitorPath, f.Name())
+		log.Printf("[app]\t\tprocessing %s", pathToProcess)
+		err := sonarr.NewTorrentFile(pathToProcess)
+		if err != nil {
 			log.Printf("Failed to process %s: %s", pathToProcess, err)
 		}
 	}
@@ -75,7 +73,7 @@ func setupSonarrMonitor() monitor.MonitorSetting {
 	return monitor.MonitorSetting{
 		Name:         "Sonarr Monitor",
 		Directory:    sonarrMonitorPath,
-		EventHandler: monitor.SonarrMonitorHandler,
+		EventHandler: sonarr.MonitorHandler,
 	}
 }
 
