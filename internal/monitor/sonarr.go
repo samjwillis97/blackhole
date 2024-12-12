@@ -361,9 +361,7 @@ func handleEvent(e sonarrEvent, filepath string) {
 func handleNewSonarrFile(filepath string) {
 	log.Printf("[sonarr]\t\tcreated file: %s\n", filepath)
 
-	sonarrTorrent := NewSonarrTorrent()
-	sonarrTorrent.IngestedPath = filepath
-
+	sonarrTorrent := NewSonarrTorrent(filepath)
 	if err := sonarrTorrent.FSM.Event(context.Background(), "torrentFound"); err != nil {
 		log.Printf("Failed to process %s: %s", filepath, err)
 	}

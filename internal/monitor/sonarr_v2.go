@@ -9,7 +9,6 @@ import (
 	"slices"
 	"strings"
 
-	// "log/slog"
 	"time"
 
 	"github.com/looplab/fsm"
@@ -43,7 +42,7 @@ type SonarrTorrent struct {
 	FSM *fsm.FSM
 }
 
-func NewSonarrTorrent() *SonarrTorrent {
+func new() *SonarrTorrent {
 	s := &SonarrTorrent{
 		// Get level from config
 		logger: slog.New(logger.NewHandler(loggerName, &slog.HandlerOptions{Level: slog.LevelDebug})).With(slog.String("name", loggerName)),
@@ -65,7 +64,7 @@ func NewSonarrTorrent() *SonarrTorrent {
 
 	events := fsm.Events{
 		{Name: "torrentFound", Src: []string{"new"}, Dst: "processing"},
-		{Name: "addToDebrid", Src: []string{"processing"}, Dst: "addingToDebrid"},
+		{Name: "addToDebrid", Src: []string{"new", "processing"}, Dst: "addingToDebrid"},
 		{Name: "checkDebridState", Src: []string{"addingToDebrid", "awaitingDebridRetry"}, Dst: "debridProcessing"},
 		{Name: "retryDebridProcessing", Src: []string{"debridProcessing"}, Dst: "awaitingDebridRetry"},
 		{Name: "complete", Src: []string{"failure", "debridProcessing"}, Dst: "completed"},
@@ -85,6 +84,18 @@ func NewSonarrTorrent() *SonarrTorrent {
 	)
 
 	return s
+}
+
+func NewSonarrTorrent(filepath string) *SonarrTorrent {
+	torrentItem := new()
+	torrentItem.IngestedPath = filepath
+	return torrentItem
+}
+
+func SonarrTorrentFromProcessing(torrent torrents.ToProcess) *SonarrTorrent {
+	torrentItem := new()
+	torrentItem.ProcessingTorrent = torrent
+	return torrentItem
 }
 
 func (s *SonarrTorrent) validateFields(requiredFields ...string) error {

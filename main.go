@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"log"
 	"os"
@@ -42,10 +43,10 @@ func setupSonarrMonitor() monitor.MonitorSetting {
 
 		pathToProcess := path.Join(sonarrMonitorPath, f.Name())
 		log.Printf("[app]\t\tprocessing %s", pathToProcess)
-		monitor.ExecuteStateMachine(monitor.SonarrItem{
-			InitialPath: pathToProcess,
-			State:       monitor.New,
-		})
+		sonarrTorrent := monitor.NewSonarrTorrent(pathToProcess)
+		if err := sonarrTorrent.FSM.Event(context.Background(), "torrentFound"); err != nil {
+			log.Printf("Failed to process %s: %s", pathToProcess, err)
+		}
 	}
 
 	sonarrProcessingPath := config.GetAppConfig().Sonarr.ProcessingPath
@@ -63,12 +64,10 @@ func setupSonarrMonitor() monitor.MonitorSetting {
 		pathToProcess := path.Join(sonarrProcessingPath, f.Name())
 		log.Printf("[app]\t\tresuming %s", pathToProcess)
 		torrentInfo, _ := torrents.FromFileInProcessing(pathToProcess)
-		stateMachineItem := monitor.SonarrItem{
-			State:   monitor.InProcessing,
-			Torrent: torrentInfo,
+		sonarrTorrent := monitor.SonarrTorrentFromProcessing(torrentInfo)
+		if err := sonarrTorrent.FSM.Event(context.Background(), "addToDebrid"); err != nil {
+			log.Printf("Failed to process %s: %s", pathToProcess, err)
 		}
-
-		monitor.ExecuteStateMachine(stateMachineItem)
 	}
 
 	log.Println("[app]\t\tfinished processing existing sonarr files")
