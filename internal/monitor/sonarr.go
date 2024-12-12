@@ -1,6 +1,7 @@
 package monitor
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -76,6 +77,7 @@ func (s *SonarrItem) handle() {
 }
 
 func (s *SonarrItem) getBestFileName() string {
+	// Should probably just store the name to start of the machine
 	if (s.Torrent != torrents.ToProcess{}) {
 		return s.Torrent.FullPath
 	} else if s.TorrentId != "" {
@@ -88,6 +90,8 @@ func (s *SonarrItem) getBestFileName() string {
 }
 
 func (s *SonarrItem) onNew() {
+	// Requires:
+	//   - current magnet/torrent path
 	if s.InitialPath == "" {
 		s.err = errors.New("Initial path is not set")
 		s.State = Failed
@@ -108,6 +112,8 @@ func (s *SonarrItem) onNew() {
 }
 
 func (s *SonarrItem) onProcessingItem() {
+	// Requires
+	//   - torent in processing
 	if (s.Torrent == torrents.ToProcess{}) {
 		s.err = errors.New("Torrent is not set")
 		s.State = Failed
@@ -149,6 +155,9 @@ func (s *SonarrItem) onProcessingItem() {
 }
 
 func (s *SonarrItem) handleDebridState() {
+	// Requires
+	//  - debrid torrent ID
+	//  - processing path
 	if s.TorrentId == "" {
 		s.err = errors.New("Missing debrid torrent ID")
 		s.State = Failed
@@ -196,6 +205,8 @@ func (s *SonarrItem) handleDebridState() {
 }
 
 func (s *SonarrItem) onWaitingForFileSelection() {
+	// Requires:
+	//  - debrid torrent ID
 	if s.TorrentId == "" {
 		s.err = errors.New("Missing debrid torrent ID")
 		s.State = Failed
@@ -213,6 +224,11 @@ func (s *SonarrItem) onWaitingForFileSelection() {
 }
 
 func (s *SonarrItem) onFailure() {
+	// Requires:
+	//  - error message
+	//  - torrent ID
+	//  - processing path
+	//  - magnet hash
 	log.Printf("[sonarr]\t\tencountered error: %s", s.err)
 	log.Printf("[sonarr]\t\tunable to process %s - removing", s.getBestFileName())
 
@@ -345,12 +361,19 @@ func handleEvent(e sonarrEvent, filepath string) {
 func handleNewSonarrFile(filepath string) {
 	log.Printf("[sonarr]\t\tcreated file: %s\n", filepath)
 
-	stateMachineItem := SonarrItem{
-		InitialPath: filepath,
-		State:       New,
+	sonarrTorrent := NewSonarrTorrent()
+	sonarrTorrent.IngestedPath = filepath
+
+	if err := sonarrTorrent.FSM.Event(context.Background(), "torrentFound"); err != nil {
+		log.Printf("Failed to process %s: %s", filepath, err)
 	}
 
-	ExecuteStateMachine(stateMachineItem)
+	// stateMachineItem := SonarrItem{
+	// 	InitialPath: filepath,
+	// 	State:       New,
+	// }
+	//
+	// ExecuteStateMachine(stateMachineItem)
 }
 
 func ExecuteStateMachine(item SonarrItem) {
