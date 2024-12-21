@@ -49,7 +49,6 @@ type Handler struct {
 	writer           io.Writer
 	colorize         bool
 	outputEmptyAttrs bool
-	name             string
 }
 
 func (h *Handler) Enabled(ctx context.Context, level slog.Level) bool {
@@ -57,11 +56,11 @@ func (h *Handler) Enabled(ctx context.Context, level slog.Level) bool {
 }
 
 func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return &Handler{h: h.h.WithAttrs(attrs), b: h.b, r: h.r, m: h.m, writer: h.writer, colorize: h.colorize, name: h.name}
+	return &Handler{h: h.h.WithAttrs(attrs), b: h.b, r: h.r, m: h.m, writer: h.writer, colorize: h.colorize}
 }
 
 func (h *Handler) WithGroup(name string) slog.Handler {
-	return &Handler{h: h.h.WithGroup(name), b: h.b, r: h.r, m: h.m, writer: h.writer, colorize: h.colorize, name: h.name}
+	return &Handler{h: h.h.WithGroup(name), b: h.b, r: h.r, m: h.m, writer: h.writer, colorize: h.colorize}
 }
 
 func (h *Handler) computeAttrs(
@@ -144,18 +143,6 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 		msg = colorize(white, msgAttr.Value.String())
 	}
 
-	var name string
-	nameAttr := slog.Attr{
-		Key:   "name",
-		Value: slog.StringValue(fmt.Sprintf("[%s]", h.name)),
-	}
-	if h.r != nil {
-		nameAttr = h.r([]string{}, nameAttr)
-	}
-	if !nameAttr.Equal(slog.Attr{}) {
-		name = colorize(white, nameAttr.Value.String())
-	}
-
 	attrs, err := h.computeAttrs(ctx, r)
 	if err != nil {
 		return err
@@ -176,10 +163,6 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 	}
 	if len(level) > 0 {
 		out.WriteString(level)
-		out.WriteString(" ")
-	}
-	if len(name) > 0 {
-		out.WriteString(name)
 		out.WriteString(" ")
 	}
 	if len(msg) > 0 {
@@ -214,7 +197,7 @@ func suppressDefaults(
 	}
 }
 
-func New(name string, handlerOptions *slog.HandlerOptions, options ...Option) *Handler {
+func New(handlerOptions *slog.HandlerOptions, options ...Option) *Handler {
 	if handlerOptions == nil {
 		handlerOptions = &slog.HandlerOptions{}
 	}
@@ -227,9 +210,8 @@ func New(name string, handlerOptions *slog.HandlerOptions, options ...Option) *H
 			AddSource:   handlerOptions.AddSource,
 			ReplaceAttr: suppressDefaults(handlerOptions.ReplaceAttr),
 		}),
-		r:    handlerOptions.ReplaceAttr,
-		m:    &sync.Mutex{},
-		name: name,
+		r: handlerOptions.ReplaceAttr,
+		m: &sync.Mutex{},
 	}
 
 	for _, opt := range options {
@@ -239,8 +221,8 @@ func New(name string, handlerOptions *slog.HandlerOptions, options ...Option) *H
 	return handler
 }
 
-func NewHandler(name string, opts *slog.HandlerOptions) *Handler {
-	return New(name, opts, WithDestinationWriter(os.Stdout), WithColor(), WithOutputEmptyAttrs())
+func NewHandler(opts *slog.HandlerOptions) *Handler {
+	return New(opts, WithDestinationWriter(os.Stdout), WithColor(), WithOutputEmptyAttrs())
 }
 
 type Option func(h *Handler)

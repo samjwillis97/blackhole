@@ -15,7 +15,6 @@ import (
 	"github.com/samjwillis97/sams-blackhole/internal/arr"
 	"github.com/samjwillis97/sams-blackhole/internal/config"
 	"github.com/samjwillis97/sams-blackhole/internal/debrid"
-	"github.com/samjwillis97/sams-blackhole/internal/logger"
 	"github.com/samjwillis97/sams-blackhole/internal/monitor"
 	"github.com/samjwillis97/sams-blackhole/internal/torrents"
 )
@@ -39,10 +38,19 @@ type MonitorItem struct {
 	sm *fsm.FSM
 }
 
-func new() *MonitorItem {
+func (m *MonitorItem) setProcessingTorrent(t torrents.ToProcess) {
+	m.processingTorrent = t
+	m.logger = m.logger.With("processing", t.FullPath)
+}
+
+func (m *MonitorItem) setDebridID(id string) {
+	m.debridID = id
+	m.logger = m.logger.With("debridId", id)
+}
+
+func new(logger *slog.Logger) *MonitorItem {
 	s := &MonitorItem{
-		// Get level from config
-		logger: slog.New(logger.NewHandler(loggerName, &slog.HandlerOptions{Level: slog.LevelDebug})).With(slog.String("name", loggerName)),
+		logger: logger.WithGroup("sonarr"),
 	}
 
 	callbacks := fsm.Callbacks{
@@ -84,8 +92,8 @@ func new() *MonitorItem {
 }
 
 // TODO: Accept logger here
-func NewTorrentFile(filepath string) error {
-	torrentItem := new()
+func NewTorrentFile(filepath string, logger *slog.Logger) error {
+	torrentItem := new(logger)
 	torrentItem.ingestedPath = filepath
 
 	if err := torrentItem.sm.Event(context.Background(), "torrentFound"); err != nil {
@@ -96,15 +104,16 @@ func NewTorrentFile(filepath string) error {
 }
 
 // TODO: Accept logger here
-func ResumeProcessingFile(filepath string) error {
+func ResumeProcessingFile(filepath string, logger *slog.Logger) error {
 	sonarrConfig := config.GetAppConfig().Sonarr
 
-	torrentItem := new()
+	torrentItem := new(logger)
 	toProcess, err := torrents.NewFileToProcess(filepath, sonarrConfig.ProcessingPath)
 	if err != nil {
 		return err
 	}
-	torrentItem.processingTorrent = toProcess
+
+	torrentItem.setProcessingTorrent(toProcess)
 
 	if err := torrentItem.sm.Event(context.Background(), "addToDebrid"); err != nil {
 		return err
@@ -147,27 +156,28 @@ func (s *MonitorItem) enterState(c context.Context, e *fsm.Event) {
 		s.sm.Event(c, "failed", errors.New("timed out"))
 	}
 
-	s.logger.Debug(fmt.Sprintf("entering %s", e.Dst), s.getLogContext()...)
+	s.logger.Debug(fmt.Sprintf("entering %s", e.Dst))
+	s.logger = s.logger.With("state", s.sm.Current())
 }
 
 func (s *MonitorItem) enterFailure(c context.Context, e *fsm.Event) {
-	s.logger.Warn("encountered error", s.getLogContext("err", e.Args[0])...)
+	s.logger.Warn("encountered error", "err", e.Args[0])
 
 	if s.debridID != "" {
 		err := debrid.Remove(s.debridID)
 		if err != nil {
-			s.logger.Warn("failed to remove from debrid", s.getLogContext("err", err)...)
+			s.logger.Error("failed to remove from debrid", "err", err)
 		}
-		s.logger.Info("removed from debrid", s.getLogContext()...)
+		s.logger.Info("removed from debrid")
 	}
 
 	err := os.Remove(s.processingTorrent.FullPath)
 	if err != nil {
-		s.logger.Warn("failed to remove from processing", s.getLogContext("err", err)...)
+		s.logger.Error("failed to remove from processing", "err", err)
 	}
 
 	s.removeFromSonarr()
-	s.logger.Info("removed from sonarr", s.getLogContext()...)
+	s.logger.Info("removed from sonarr")
 }
 
 func (s *MonitorItem) checkRequiredParams(c context.Context, e *fsm.Event) bool {
@@ -184,21 +194,21 @@ func (s *MonitorItem) enterProcessing(c context.Context, e *fsm.Event) {
 	if success := s.checkRequiredParams(c, e); !success {
 		return
 	}
-	s.logger.Info("moving to processing", s.getLogContext()...)
+	s.logger.Info("moving to processing")
 
 	sonarrConfig := config.GetAppConfig().Sonarr
 	toProcess, err := torrents.NewFileToProcess(s.ingestedPath, sonarrConfig.ProcessingPath)
 	if err != nil {
 		if err := s.sm.Event(c, "failed", err); err != nil {
-			s.logger.Warn(fmt.Sprintf("event transition %s failed", "failed"), s.getLogContext("err", err)...)
+			s.logger.Error(fmt.Sprintf("event transition %s failed", "failed"), "err", err)
 			return
 		}
 		return // Need to check if there is a way not to do this
 	}
 
-	s.processingTorrent = toProcess
+	s.setProcessingTorrent(toProcess)
 	if err := s.sm.Event(c, "addToDebrid"); err != nil {
-		s.logger.Warn(fmt.Sprintf("event transition %s failed", "addToDebrid"), s.getLogContext("err", err)...)
+		s.logger.Error(fmt.Sprintf("event transition %s failed", "addToDebrid"), "err", err)
 		return
 	}
 }
@@ -209,34 +219,33 @@ func (s *MonitorItem) enterAddingToDebrid(c context.Context, e *fsm.Event) {
 	}
 	switch s.processingTorrent.FileType {
 	case torrents.TorrentFile:
-		s.logger.Info("adding torrent file to debrid", s.getLogContext()...)
+		s.logger.Info("adding torrent file to debrid")
 		// TODO: Finish handling here - need to find a torrent file to test with
 		torrentResponse, err := debrid.AddTorrent(s.processingTorrent.FullPath)
 		if err != nil {
 			s.sm.Event(c, "failed", err)
 			return
 		}
-		s.debridID = torrentResponse.ID
+		s.setDebridID(torrentResponse.ID)
 	case torrents.Magnet:
-		s.logger.Info("getting magnet link", s.getLogContext()...)
+		s.logger.Info("getting magnet link")
 		magnetLink, err := s.processingTorrent.GetMagnetLink()
 		if err != nil {
 			s.sm.Event(c, "failed", err)
 			return
 		}
 
-		s.logger.Info("adding magnet to debrid", s.getLogContext()...)
+		s.logger.Info("adding magnet to debrid")
 		magnetResponse, err := debrid.AddMagnet(magnetLink)
 		if err != nil {
 			s.sm.Event(c, "failed", err)
 			return
 		}
-
-		s.debridID = magnetResponse.ID
+		s.setDebridID(magnetResponse.ID)
 	}
 
 	if err := s.sm.Event(c, "checkDebridState"); err != nil {
-		s.logger.Warn(fmt.Sprintf("event transition %s failed", "checkDebridState"), s.getLogContext("err", err)...)
+		s.logger.Error(fmt.Sprintf("event transition %s failed", "checkDebridState"), "err", err)
 		return
 	}
 }
@@ -252,7 +261,9 @@ func (s *MonitorItem) enterDebridProcessing(c context.Context, e *fsm.Event) {
 		return
 	}
 
-	s.logger.Debug("handling debrid status", s.getLogContext("status", torrentInfo.Status)...)
+	s.logger = s.logger.With("debridStatus", torrentInfo.Status)
+	s.logger.Debug("handling debrid status")
+
 	switch torrentInfo.Status {
 	case debrid.WaitingFileSelection:
 		err := s.selectDebridFiles()
@@ -262,13 +273,13 @@ func (s *MonitorItem) enterDebridProcessing(c context.Context, e *fsm.Event) {
 		}
 
 		if err := s.sm.Event(c, "retryDebridProcessing"); err != nil {
-			s.logger.Warn(fmt.Sprintf("event transition %s failed", "retryDebridProcessing"), s.getLogContext("err", err)...)
+			s.logger.Error(fmt.Sprintf("event transition %s failed", "retryDebridProcessing"), "err", err)
 			return
 		}
 		return
 	case debrid.Queued:
 		if err := s.sm.Event(c, "retryDebridProcessing"); err != nil {
-			s.logger.Warn(fmt.Sprintf("event transition %s failed", "retryDebridProcessing"), s.getLogContext("err", err)...)
+			s.logger.Error(fmt.Sprintf("event transition %s failed", "retryDebridProcessing"), "err", err)
 			return
 		}
 		return
@@ -281,7 +292,7 @@ func (s *MonitorItem) enterDebridProcessing(c context.Context, e *fsm.Event) {
 	case debrid.Downloaded:
 		s.addToDebridMonitor(torrentInfo)
 		if err := s.sm.Event(c, "complete"); err != nil {
-			s.logger.Warn(fmt.Sprintf("event transition %s failed", "complete"), s.getLogContext("err", err)...)
+			s.logger.Error(fmt.Sprintf("event transition %s failed", "complete"), "err", err)
 			return
 		}
 		return
@@ -292,11 +303,11 @@ func (s *MonitorItem) enterDebridProcessing(c context.Context, e *fsm.Event) {
 }
 
 func (s *MonitorItem) enterCompleted(c context.Context, _ *fsm.Event) {
-	s.logger.Info("finished handling", s.getLogContext()...)
+	s.logger.Info("finished handling")
 }
 
 func (s *MonitorItem) selectDebridFiles() error {
-	s.logger.Debug("selecting all files", s.getLogContext()...)
+	s.logger.Debug("selecting all files")
 	err := debrid.SelectFiles(s.debridID, []string{})
 	if err != nil {
 		return err
@@ -309,13 +320,14 @@ func (s *MonitorItem) waitToRetryDebridProcessing(c context.Context, e *fsm.Even
 	time.Sleep(1 * time.Second)
 
 	if err := s.sm.Event(c, "checkDebridState"); err != nil {
-		s.logger.Warn(fmt.Sprintf("event transition %s failed", "checkDebridState"), s.getLogContext("err", err)...)
+		s.logger.Error(fmt.Sprintf("event transition %s failed", "checkDebridState"), "err", err)
 		return
 	}
 }
 
 func (s *MonitorItem) addToDebridMonitor(torrentInfo debrid.GetInfoResponse) {
-	s.logger.Info("adding to monitor", s.getLogContext("torrentName", torrentInfo.Filename)...)
+	s.logger = s.logger.With("name", torrentInfo.Filename)
+	s.logger.Info("adding to monitor")
 	sonarrConfig := config.GetAppConfig().Sonarr
 	monitor.MonitorForDebridFiles(monitor.MonitorConfig{
 		Filename:         torrentInfo.Filename,
@@ -329,13 +341,14 @@ func (s *MonitorItem) addToDebridMonitor(torrentInfo debrid.GetInfoResponse) {
 func (s *MonitorItem) removeFromSonarr() {
 	hash, err := s.processingTorrent.GetMagnetHash()
 	if err != nil {
-		s.logger.Warn("failed to get hash", s.getLogContext()...)
+		s.logger.Error("failed to get hash")
 		return
 	}
+	s.logger.With("hash", hash)
 
 	history, err := arr.SonarrGetHistory(50)
 	if err != nil {
-		s.logger.Warn("failed to get history", s.getLogContext("hash", hash)...)
+		s.logger.Error("failed to get history")
 		return
 	}
 
@@ -343,38 +356,15 @@ func (s *MonitorItem) removeFromSonarr() {
 		return item.EventType == arr.Grabbed && item.Data.TorrentInfoHash == hash
 	})
 	if toRemove == -1 {
-		s.logger.Warn("could not find hash in history", s.getLogContext("hash", hash)...)
+		s.logger.Error("could not find hash in history")
 		return
 	}
+	sonarrId := history.Records[toRemove].ID
+	s.logger.With("id", sonarrId)
 
-	err = arr.SonarrFailHistoryItem(history.Records[toRemove].ID)
+	err = arr.SonarrFailHistoryItem(sonarrId)
 	if toRemove == -1 {
-		s.logger.Warn("failed to fail history item with id", s.getLogContext("sonarrId", history.Records[toRemove].ID)...)
+		s.logger.Error("failed to fail history item with id")
 		return
 	}
-}
-
-func (s *MonitorItem) getLogContext(additional ...any) []any {
-	context := []any{}
-	context = append(context, additional...)
-
-	if s.ingestedPath != "" {
-		context = append(context, "ingested")
-		context = append(context, s.ingestedPath)
-	}
-
-	if (s.processingTorrent != torrents.ToProcess{}) {
-		context = append(context, "processing")
-		context = append(context, s.processingTorrent.FullPath)
-	}
-
-	if s.debridID != "" {
-		context = append(context, "debridId")
-		context = append(context, s.debridID)
-	}
-
-	context = append(context, "currentState")
-	context = append(context, s.sm.Current())
-
-	return context
 }

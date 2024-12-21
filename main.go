@@ -2,49 +2,57 @@ package main
 
 import (
 	"errors"
-	"log"
+	"log/slog"
 	"os"
 	"path"
 
 	"github.com/radovskyb/watcher"
 	"github.com/samjwillis97/sams-blackhole/internal/config"
+	"github.com/samjwillis97/sams-blackhole/internal/logger"
 	"github.com/samjwillis97/sams-blackhole/internal/monitor"
 	"github.com/samjwillis97/sams-blackhole/internal/monitor/sonarr"
 )
 
 func main() {
-	log.Println("[app]\t\tstarting")
-
-	monitorSetup := []monitor.MonitorSetting{}
-
-	monitorSetup = append(monitorSetup, setupSonarrMonitor())
-	monitorSetup = append(monitorSetup, setupDebridMonitor())
-
-	eventWatcher, pollWatcher := monitor.StartMonitoring(monitorSetup)
-	defer eventWatcher.Close()
-	defer pollWatcher.Close()
-
-	<-make(chan struct{})
+	logger.Main()
+	// log := slog.New(logger.NewHandler(&slog.HandlerOptions{Level: slog.LevelDebug}))
+	// log.Info("starting")
+	//
+	// monitorSetttings := []monitor.MonitorSetting{}
+	//
+	// monitorSetttings = append(monitorSetttings, setupSonarrMonitor(log))
+	// monitorSetttings = append(monitorSetttings, setupDebridMonitor(log))
+	//
+	// monitorSetup := monitor.Monitor{
+	// 	Logger:   log,
+	// 	Settings: monitorSetttings,
+	// }
+	//
+	// eventWatcher, pollWatcher := monitorSetup.StartMonitoring()
+	// defer eventWatcher.Close()
+	// defer pollWatcher.Close()
+	//
+	// <-make(chan struct{})
 }
 
-func setupSonarrMonitor() monitor.MonitorSetting {
+func setupSonarrMonitor(log *slog.Logger) monitor.MonitorSetting {
 	sonarrProcessingPath := config.GetAppConfig().Sonarr.ProcessingPath
 	sonarrFilesToResume, err := os.ReadDir(sonarrProcessingPath)
 	if err != nil {
 		panic(errors.New("Failed to read sonarr processing directory"))
 	}
 
-	log.Println("[app]\t\tresuming processing existing sonarr files")
+	log.Info("resuming processing of existing sonarr files")
 	for _, f := range sonarrFilesToResume {
 		if f.IsDir() {
 			continue
 		}
 
 		pathToProcess := path.Join(sonarrProcessingPath, f.Name())
-		log.Printf("[app]\t\tresuming %s", pathToProcess)
-		err := sonarr.ResumeProcessingFile(pathToProcess)
+		log.Info("resuming file", "file", pathToProcess)
+		err := sonarr.ResumeProcessingFile(pathToProcess, log)
 		if err != nil {
-			log.Printf("Failed to process %s: %s", pathToProcess, err)
+			log.Warn("processing failed", "file", pathToProcess, "err", err)
 		}
 	}
 
@@ -54,21 +62,21 @@ func setupSonarrMonitor() monitor.MonitorSetting {
 		panic(errors.New("Failed to read sonarr monitor directory"))
 	}
 
-	log.Println("[app]\t\tstarting processing existing sonarr files")
+	log.Info("starting processing new sonarr files")
 	for _, f := range currentSonarrFiles {
 		if f.IsDir() {
 			continue
 		}
 
 		pathToProcess := path.Join(sonarrMonitorPath, f.Name())
-		log.Printf("[app]\t\tprocessing %s", pathToProcess)
-		err := sonarr.NewTorrentFile(pathToProcess)
+		log.Info("processing file", "file", pathToProcess)
+		err := sonarr.NewTorrentFile(pathToProcess, log)
 		if err != nil {
-			log.Printf("Failed to process %s: %s", pathToProcess, err)
+			log.Warn("processing failed", "file", pathToProcess, "err", err)
 		}
 	}
 
-	log.Println("[app]\t\tfinished processing existing sonarr files")
+	log.Info("finished processing existing sonarr files")
 
 	return monitor.MonitorSetting{
 		Name:         "Sonarr Monitor",
@@ -77,21 +85,21 @@ func setupSonarrMonitor() monitor.MonitorSetting {
 	}
 }
 
-func setupDebridMonitor() monitor.MonitorSetting {
+func setupDebridMonitor(log *slog.Logger) monitor.MonitorSetting {
 	debridMonitorPath := config.GetAppConfig().RealDebrid.WatchPatch
 	currentDebridFiles, err := os.ReadDir(debridMonitorPath)
 	if err != nil {
 		panic(errors.New("Failed to read debrid watch directory"))
 	}
 
-	log.Println("[app]\t\tstarting processing existing debrid files")
+	log.Info("starting processing existing debrid files")
 	for _, f := range currentDebridFiles {
 		monitor.DebridMountMonitorHandler(watcher.Event{
 			Path: path.Join(debridMonitorPath, f.Name()),
 			Op:   watcher.Create,
 		}, debridMonitorPath)
 	}
-	log.Println("[app]\t\tfinished processing existing debrid files")
+	log.Info("finished processing existing debrid files")
 
 	return monitor.MonitorSetting{
 		Name:        "Debrid Monitor",
