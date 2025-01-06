@@ -27,7 +27,6 @@ type MonitorSetting struct {
 }
 
 func (m *Monitor) StartMonitoring() (*fsnotify.Watcher, *watcher.Watcher) {
-	m.Logger = m.Logger.WithGroup("monitor")
 	m.Logger.Info("initializing monitor")
 
 	eventBasedWatcher, err := m.createEventBasedWatcher()
@@ -88,7 +87,10 @@ func (m *Monitor) pollWatchHandler(w *watcher.Watcher, s []MonitorSetting) {
 		case event := <-w.Event:
 			for _, setting := range s {
 				if strings.Contains(event.Path, setting.Directory) {
-					logger.Debug("event received", "event", event.Op.String(), "path", event.Path, "monitor", setting.Name)
+					logger = logger.With("monitorName", setting.Name).With("monitorEventType", event.Op.String()).With("monitorEventPath", event.Path)
+
+					logger.Debug("event received")
+
 					setting.PollHandler(event, setting.Directory)
 				}
 			}
@@ -109,7 +111,7 @@ func (m *Monitor) createEventBasedWatcher() (*fsnotify.Watcher, error) {
 		}
 	}
 
-	logger := m.Logger.With("type", "event")
+	logger := m.Logger.With("monitorType", "event")
 
 	// Create new event based watcher
 	eventWatcher, err := fsnotify.NewWatcher()
@@ -145,8 +147,9 @@ func eventWatchHandler(w *fsnotify.Watcher, s []MonitorSetting, logger *slog.Log
 			for _, setting := range s {
 				if strings.Contains(event.Name, setting.Directory) {
 					eventId := uuid.New()
-					logger := logger.With("event", event.Op.String(), "file", setting.Name, "path", event.Name, "id", eventId)
-					logger.Info("event received")
+					logger = logger.With("monitorName", setting.Name).With("monitorEventType", event.Op.String()).With("monitorEventPath", event.Name).With("eventID", eventId)
+
+					logger.Debug("event received")
 					// FIXME: I dont like putting a `go` here, feels like there is something blocking the function
 					go setting.EventHandler(event, setting.Directory, logger)
 				}

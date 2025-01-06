@@ -2,12 +2,14 @@
 
 Attempting to order these in what actually needs to be done
 
+- [ ] Support multiple of each sonarr etc.
+- [ ] On event expiry scan folder to check if it exists or something like that
 - [X] Create events from files already in directory when starting monitors
     - Need to re-work how these actually work
     - [X] Event based
         - Sonarr should redrive based off of files in both watch path and processing path
         - This involves a state machine to handle it 
-    - [ ] Poll based
+    - [X] Poll based
 - [ ] Re-run things on a timer..
 - [ ] Check usage of `go` in the event watch handler
 - [ ] Create a central HTTP client with:
@@ -23,7 +25,7 @@ Attempting to order these in what actually needs to be done
 - [ ] Check original file name for debrid mount handler, like the other scripts
 - [ ] Use `cobra` to make command line entry point
 - [ ] Think about how to use state from `GetInfo` to drive some things - would make it more reliable
-
+- [ ] Don't blacklist torrents based on different errors, i.e. 503 from Debrid shouldn't be a blacklist
 - [x] Investigate the instant availability endpoint.. or how to do similar
     - Since it no longer exists, I wonder if I can just check if the state goes to downloading
     - If it does this is pretty much guaranteed not to be instant available

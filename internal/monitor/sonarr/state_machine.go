@@ -40,17 +40,17 @@ type MonitorItem struct {
 
 func (m *MonitorItem) setProcessingTorrent(t torrents.ToProcess) {
 	m.processingTorrent = t
-	m.logger = m.logger.With("processing", t.FullPath)
+	m.logger = m.logger.With("processingPath", t.FullPath)
 }
 
 func (m *MonitorItem) setDebridID(id string) {
 	m.debridID = id
-	m.logger = m.logger.With("debridId", id)
+	m.logger = m.logger.With("debridID", id)
 }
 
 func new(logger *slog.Logger) *MonitorItem {
 	s := &MonitorItem{
-		logger: logger.WithGroup("sonarr"),
+		logger: logger,
 	}
 
 	callbacks := fsm.Callbacks{
@@ -157,7 +157,7 @@ func (s *MonitorItem) enterState(c context.Context, e *fsm.Event) {
 	}
 
 	s.logger.Debug(fmt.Sprintf("entering %s", e.Dst))
-	s.logger = s.logger.With("state", s.sm.Current())
+	s.logger = s.logger.With("handlerState", s.sm.Current())
 }
 
 func (s *MonitorItem) enterFailure(c context.Context, e *fsm.Event) {
@@ -326,7 +326,7 @@ func (s *MonitorItem) waitToRetryDebridProcessing(c context.Context, e *fsm.Even
 }
 
 func (s *MonitorItem) addToDebridMonitor(torrentInfo debrid.GetInfoResponse) {
-	s.logger = s.logger.With("name", torrentInfo.Filename)
+	s.logger = s.logger.With("torrentFilename", torrentInfo.Filename)
 	s.logger.Info("adding to monitor")
 	sonarrConfig := config.GetAppConfig().Sonarr
 	monitor.MonitorForDebridFiles(monitor.MonitorConfig{
@@ -344,7 +344,7 @@ func (s *MonitorItem) removeFromSonarr() {
 		s.logger.Error("failed to get hash")
 		return
 	}
-	s.logger.With("hash", hash)
+	s.logger.With("magnetHash", hash)
 
 	history, err := arr.SonarrGetHistory(50)
 	if err != nil {
@@ -360,7 +360,7 @@ func (s *MonitorItem) removeFromSonarr() {
 		return
 	}
 	sonarrId := history.Records[toRemove].ID
-	s.logger.With("id", sonarrId)
+	s.logger.With("sonarrID", sonarrId)
 
 	err = arr.SonarrFailHistoryItem(sonarrId)
 	if toRemove == -1 {

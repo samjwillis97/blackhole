@@ -14,25 +14,25 @@ import (
 )
 
 func main() {
-	logger.Main()
-	// log := slog.New(logger.NewHandler(&slog.HandlerOptions{Level: slog.LevelDebug}))
-	// log.Info("starting")
-	//
-	// monitorSetttings := []monitor.MonitorSetting{}
-	//
-	// monitorSetttings = append(monitorSetttings, setupSonarrMonitor(log))
-	// monitorSetttings = append(monitorSetttings, setupDebridMonitor(log))
-	//
-	// monitorSetup := monitor.Monitor{
-	// 	Logger:   log,
-	// 	Settings: monitorSetttings,
-	// }
-	//
-	// eventWatcher, pollWatcher := monitorSetup.StartMonitoring()
-	// defer eventWatcher.Close()
-	// defer pollWatcher.Close()
-	//
-	// <-make(chan struct{})
+	// logger.Main()
+	log := slog.New(logger.NewHandler(&slog.HandlerOptions{Level: slog.LevelDebug}))
+	log.Info("starting")
+
+	monitorSetttings := []monitor.MonitorSetting{}
+
+	monitorSetttings = append(monitorSetttings, setupSonarrMonitor(log))
+	monitorSetttings = append(monitorSetttings, setupDebridMonitor(log))
+
+	monitorSetup := monitor.Monitor{
+		Logger:   log,
+		Settings: monitorSetttings,
+	}
+
+	eventWatcher, pollWatcher := monitorSetup.StartMonitoring()
+	defer eventWatcher.Close()
+	defer pollWatcher.Close()
+
+	<-make(chan struct{})
 }
 
 func setupSonarrMonitor(log *slog.Logger) monitor.MonitorSetting {

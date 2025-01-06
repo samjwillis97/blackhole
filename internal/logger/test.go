@@ -1,32 +1,26 @@
 package logger
 
 import (
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
+	"github.com/rs/zerolog"
+	"os"
 )
 
 type EventHandler struct {
-	logger *zap.Logger
+	logger zerolog.Logger
 }
 
 type ServiceHandler struct {
-	logger *zap.Logger
+	logger zerolog.Logger
 }
 
 func Main() {
 	// Initialize the base logger
-	config := zap.NewProductionConfig()
-	config.EncoderConfig.TimeKey = "ts"
-	config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-	logger, _ := config.Build()
-	defer logger.Sync()
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	baseLogger := zerolog.New(os.Stdout).With().Timestamp().Logger()
 
 	// Example event data
 	eventID := "213"
-	eventLogger := logger.With(
-		zap.Namespace("event"),
-		zap.String("id", eventID),
-	)
+	eventLogger := baseLogger.With().Dict("event", zerolog.Dict().Str("id", eventID)).Logger()
 
 	eventHandler := &EventHandler{logger: eventLogger}
 	eventHandler.HandleEvent()
@@ -34,7 +28,7 @@ func Main() {
 
 func (eh *EventHandler) HandleEvent() {
 	// Example log in the event handler
-	eh.logger.Info("event log")
+	eh.logger.Info().Msg("event log")
 
 	// Pass logger to service handler
 	serviceHandler := &ServiceHandler{logger: eh.logger}
@@ -43,12 +37,9 @@ func (eh *EventHandler) HandleEvent() {
 
 func (sh *ServiceHandler) Process(state string) {
 	// Add service-specific fields using namespace
-	serviceLogger := sh.logger.With(
-		zap.Namespace("service"),
-		zap.String("state", state),
-	)
+	sh.logger = sh.logger.With().Dict("service", zerolog.Dict().Str("state", "processing")).Logger()
+	sh.logger = sh.logger.With().Dict("service", zerolog.Dict().Str("id", "123123")).Logger()
 
 	// Example log in the service handler
-	serviceLogger.Info("service log")
+	sh.logger.Info().Msg("service log")
 }
-
