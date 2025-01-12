@@ -7,10 +7,6 @@ import (
 	"github.com/samjwillis97/sams-blackhole/internal/monitor"
 )
 
-const (
-	loggerName = "sonarr-monitor"
-)
-
 func MonitorHandler(e fsnotify.Event, _ string, logger *slog.Logger) {
 	switch e.Op {
 	case fsnotify.Create:

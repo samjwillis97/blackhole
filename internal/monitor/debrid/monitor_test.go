@@ -1,4 +1,4 @@
-package monitor_test
+package debrid_test
 
 import (
 	"errors"
@@ -13,6 +13,7 @@ import (
 	"github.com/samjwillis97/sams-blackhole/internal/arr"
 	"github.com/samjwillis97/sams-blackhole/internal/config"
 	"github.com/samjwillis97/sams-blackhole/internal/monitor"
+	"github.com/samjwillis97/sams-blackhole/internal/monitor/debrid"
 	"github.com/spf13/viper"
 )
 
@@ -105,7 +106,7 @@ func TestMountMonitorDirCreated(t *testing.T) {
 	})
 	defer cleanup(setupConfig)
 
-	monitor.MonitorForDebridFiles(path.Base(setupConfig.ToLinkDir), setupConfig.CompletedDir, arr.Sonarr)
+	debrid.MonitorForDebridFiles(path.Base(setupConfig.ToLinkDir), setupConfig.CompletedDir, arr.Sonarr)
 
 	event := fsnotify.Event{
 		Name: path.Base(setupConfig.ToLinkDir),

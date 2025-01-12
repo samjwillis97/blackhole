@@ -2,6 +2,7 @@
 
 Attempting to order these in what actually needs to be done
 
+- [ ] Handle files being dead, not sure how to recreate this currently but looks like the rclone 404's
 - [ ] Support multiple of each sonarr etc.
 - [ ] On event expiry scan folder to check if it exists or something like that
 - [X] Create events from files already in directory when starting monitors

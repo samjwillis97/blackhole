@@ -10,6 +10,7 @@ import (
 	"github.com/samjwillis97/sams-blackhole/internal/config"
 	"github.com/samjwillis97/sams-blackhole/internal/logger"
 	"github.com/samjwillis97/sams-blackhole/internal/monitor"
+	"github.com/samjwillis97/sams-blackhole/internal/monitor/debrid"
 	"github.com/samjwillis97/sams-blackhole/internal/monitor/sonarr"
 )
 
@@ -94,16 +95,16 @@ func setupDebridMonitor(log *slog.Logger) monitor.MonitorSetting {
 
 	log.Info("starting processing existing debrid files")
 	for _, f := range currentDebridFiles {
-		monitor.DebridMountMonitorHandler(watcher.Event{
+		debrid.MonitorHandler(watcher.Event{
 			Path: path.Join(debridMonitorPath, f.Name()),
 			Op:   watcher.Create,
-		}, debridMonitorPath)
+		}, debridMonitorPath, log)
 	}
 	log.Info("finished processing existing debrid files")
 
 	return monitor.MonitorSetting{
 		Name:        "Debrid Monitor",
 		Directory:   debridMonitorPath,
-		PollHandler: monitor.DebridMountMonitorHandler,
+		PollHandler: debrid.MonitorHandler,
 	}
 }

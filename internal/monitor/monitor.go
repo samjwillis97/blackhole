@@ -23,7 +23,7 @@ type MonitorSetting struct {
 	Name         string
 	Directory    string
 	EventHandler func(fsnotify.Event, string, *slog.Logger)
-	PollHandler  func(watcher.Event, string)
+	PollHandler  func(watcher.Event, string, *slog.Logger)
 }
 
 func (m *Monitor) StartMonitoring() (*fsnotify.Watcher, *watcher.Watcher) {
@@ -87,11 +87,12 @@ func (m *Monitor) pollWatchHandler(w *watcher.Watcher, s []MonitorSetting) {
 		case event := <-w.Event:
 			for _, setting := range s {
 				if strings.Contains(event.Path, setting.Directory) {
-					logger = logger.With("monitorName", setting.Name).With("monitorEventType", event.Op.String()).With("monitorEventPath", event.Path)
+					eventId := uuid.New()
+					logger = logger.With("monitorName", setting.Name).With("monitorEventType", event.Op.String()).With("monitorEventPath", event.Path).With("eventID", eventId)
 
 					logger.Debug("event received")
 
-					setting.PollHandler(event, setting.Directory)
+					setting.PollHandler(event, setting.Directory, logger)
 				}
 			}
 		case err := <-w.Error:

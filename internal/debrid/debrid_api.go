@@ -80,7 +80,7 @@ func AddMagnet(magnetLink string) (AddTorrentResponse, error) {
 
 	if resp.StatusCode >= 300 {
 		// TODO: Trace log
-    return AddTorrentResponse{}, errors.New(fmt.Sprintf("Unable to make request response code: %d, message: %s", resp.StatusCode, string(bodyBytes)))
+		return AddTorrentResponse{}, errors.New(fmt.Sprintf("Unable to make request response code: %d, message: %s", resp.StatusCode, string(bodyBytes)))
 	}
 
 	var apiResponse AddTorrentResponse

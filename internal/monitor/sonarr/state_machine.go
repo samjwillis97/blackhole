@@ -15,7 +15,7 @@ import (
 	"github.com/samjwillis97/sams-blackhole/internal/arr"
 	"github.com/samjwillis97/sams-blackhole/internal/config"
 	"github.com/samjwillis97/sams-blackhole/internal/debrid"
-	"github.com/samjwillis97/sams-blackhole/internal/monitor"
+	debridMonitor "github.com/samjwillis97/sams-blackhole/internal/monitor/debrid"
 	"github.com/samjwillis97/sams-blackhole/internal/torrents"
 )
 
@@ -91,7 +91,6 @@ func new(logger *slog.Logger) *MonitorItem {
 	return s
 }
 
-// TODO: Accept logger here
 func NewTorrentFile(filepath string, logger *slog.Logger) error {
 	torrentItem := new(logger)
 	torrentItem.ingestedPath = filepath
@@ -329,13 +328,13 @@ func (s *MonitorItem) addToDebridMonitor(torrentInfo debrid.GetInfoResponse) {
 	s.logger = s.logger.With("torrentFilename", torrentInfo.Filename)
 	s.logger.Info("adding to monitor")
 	sonarrConfig := config.GetAppConfig().Sonarr
-	monitor.MonitorForDebridFiles(monitor.MonitorConfig{
+	debridMonitor.MonitorForDebridFiles(debridMonitor.MonitorConfig{
 		Filename:         torrentInfo.Filename,
 		OriginalFilename: torrentInfo.OriginalFilename,
 		CompletedDir:     sonarrConfig.CompletedPath,
 		Service:          arr.Sonarr,
 		ProcessingPath:   s.processingTorrent.FullPath,
-	})
+	}, s.logger)
 }
 
 func (s *MonitorItem) removeFromSonarr() {
