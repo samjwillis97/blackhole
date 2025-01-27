@@ -1,6 +1,7 @@
 package debrid
 
 import (
+	"errors"
 	"log"
 	"os"
 	"sync"
@@ -15,6 +16,12 @@ type PathMeta struct {
 	ProcessingPath   string
 	CompletedDir     string
 	Service          arr.ArrService
+	Callbacks        Callbacks
+}
+
+type Callbacks struct {
+	Success func() error
+	Failure func()
 }
 
 type PathSet map[string]PathMeta
@@ -68,12 +75,16 @@ func (s *Monitors) get(item string) PathMeta {
 }
 
 // Remove deletes an element from the set
-func (s *Monitors) remove(item string) PathMeta {
+func (s *Monitors) remove(item string) (PathMeta, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	_, exists := s.set[item]
+	if !exists {
+		return PathMeta{}, errors.New("Item does not exist")
+	}
 	toReturn := s.get(item)
 	delete(s.set, item)
-	return toReturn
+	return toReturn, nil
 }
 
 // Items returns all elements in the set

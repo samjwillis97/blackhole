@@ -3,6 +3,7 @@ package sonarr_test
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/samjwillis97/sams-blackhole/internal/config"
+	"github.com/samjwillis97/sams-blackhole/internal/logger"
 	"github.com/samjwillis97/sams-blackhole/internal/monitor"
 	"github.com/samjwillis97/sams-blackhole/internal/monitor/sonarr"
 	"github.com/samjwillis97/sams-blackhole/internal/torrents"
@@ -52,6 +54,8 @@ func createProcessingDir2(rootDir string) string {
 }
 
 func TestNewMagnetFileCreated2(t *testing.T) {
+	log := slog.New(logger.NewHandler(&slog.HandlerOptions{Level: slog.LevelDebug}))
+
 	requestMade := false
 	debridapikey := "123456789"
 	startTime := time.Now()

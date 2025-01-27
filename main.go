@@ -21,7 +21,7 @@ func main() {
 
 	monitorSetttings := []monitor.MonitorSetting{}
 
-	monitorSetttings = append(monitorSetttings, setupSonarrMonitor(log))
+	monitorSetttings = append(monitorSetttings, setupSonarrMonitor(log)...)
 	monitorSetttings = append(monitorSetttings, setupDebridMonitor(log))
 
 	monitorSetup := monitor.Monitor{
@@ -36,54 +36,60 @@ func main() {
 	<-make(chan struct{})
 }
 
-func setupSonarrMonitor(log *slog.Logger) monitor.MonitorSetting {
-	sonarrProcessingPath := config.GetAppConfig().Sonarr.ProcessingPath
-	sonarrFilesToResume, err := os.ReadDir(sonarrProcessingPath)
-	if err != nil {
-		panic(errors.New("Failed to read sonarr processing directory"))
-	}
+func setupSonarrMonitor(log *slog.Logger) []monitor.MonitorSetting {
 
-	log.Info("resuming processing of existing sonarr files")
-	for _, f := range sonarrFilesToResume {
-		if f.IsDir() {
-			continue
-		}
+	monitors := []monitor.MonitorSetting{}
 
-		pathToProcess := path.Join(sonarrProcessingPath, f.Name())
-		log.Info("resuming file", "file", pathToProcess)
-		err := sonarr.ResumeProcessingFile(pathToProcess, log)
+	for _, config := range config.GetAppConfig().Sonarr {
+		sonarrFilesToResume, err := os.ReadDir(config.ProcessingPath)
 		if err != nil {
-			log.Warn("processing failed", "file", pathToProcess, "err", err)
-		}
-	}
-
-	sonarrMonitorPath := config.GetAppConfig().Sonarr.WatchPath
-	currentSonarrFiles, err := os.ReadDir(sonarrMonitorPath)
-	if err != nil {
-		panic(errors.New("Failed to read sonarr monitor directory"))
-	}
-
-	log.Info("starting processing new sonarr files")
-	for _, f := range currentSonarrFiles {
-		if f.IsDir() {
-			continue
+			panic(errors.New("Failed to read sonarr processing directory"))
 		}
 
-		pathToProcess := path.Join(sonarrMonitorPath, f.Name())
-		log.Info("processing file", "file", pathToProcess)
-		err := sonarr.NewTorrentFile(pathToProcess, log)
+		log.Info("resuming processing of existing sonarr files")
+		for _, f := range sonarrFilesToResume {
+			if f.IsDir() {
+				continue
+			}
+
+			pathToProcess := path.Join(config.ProcessingPath, f.Name())
+			log.Info("resuming file", "file", pathToProcess)
+			err := sonarr.ResumeProcessingFile(config, pathToProcess, log)
+			if err != nil {
+				log.Warn("processing failed", "file", pathToProcess, "err", err)
+			}
+		}
+
+		currentSonarrFiles, err := os.ReadDir(config.WatchPath)
 		if err != nil {
-			log.Warn("processing failed", "file", pathToProcess, "err", err)
+			panic(errors.New("Failed to read sonarr monitor directory"))
 		}
+
+		log.Info("starting processing new sonarr files")
+		for _, f := range currentSonarrFiles {
+			if f.IsDir() {
+				continue
+			}
+
+			pathToProcess := path.Join(config.WatchPath, f.Name())
+			log.Info("processing file", "file", pathToProcess)
+			err := sonarr.NewTorrentFile(config, pathToProcess, log)
+			if err != nil {
+				log.Warn("processing failed", "file", pathToProcess, "err", err)
+			}
+		}
+
+		log.Info("finished processing existing sonarr files")
+
+		monitors = append(monitors, monitor.MonitorSetting{
+			Name:         "Sonarr Monitor",
+			Directory:    config.WatchPath,
+			EventHandler: sonarr.MonitorHandlerBuilder(config),
+		},
+		)
 	}
 
-	log.Info("finished processing existing sonarr files")
-
-	return monitor.MonitorSetting{
-		Name:         "Sonarr Monitor",
-		Directory:    sonarrMonitorPath,
-		EventHandler: sonarr.MonitorHandler,
-	}
+	return monitors
 }
 
 func setupDebridMonitor(log *slog.Logger) monitor.MonitorSetting {

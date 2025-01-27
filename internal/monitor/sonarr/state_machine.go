@@ -33,7 +33,10 @@ type MonitorItem struct {
 	debridID    string
 	timeoutTime time.Time
 	prettyName  string
-	logger      *slog.Logger
+
+	sonarrClient *arr.SonarrClient
+	logger       *slog.Logger
+	config       config.SonarrConfig
 
 	sm *fsm.FSM
 }
@@ -48,9 +51,21 @@ func (m *MonitorItem) setDebridID(id string) {
 	m.logger = m.logger.With("debridID", id)
 }
 
-func new(logger *slog.Logger) *MonitorItem {
+func new(conf config.SonarrConfig, logger *slog.Logger) (*MonitorItem, error) {
+	sonarrClient, err := arr.CreateNewSonarrClient(
+		conf.Url,
+		// FIXME: The secrets are bad
+		config.GetSecrets().SonarrApiKey,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
 	s := &MonitorItem{
-		logger: logger,
+		sonarrClient: sonarrClient,
+		config:       conf,
+		logger:       logger,
 	}
 
 	callbacks := fsm.Callbacks{
@@ -88,11 +103,15 @@ func new(logger *slog.Logger) *MonitorItem {
 		callbacks,
 	)
 
-	return s
+	return s, nil
 }
 
-func NewTorrentFile(filepath string, logger *slog.Logger) error {
-	torrentItem := new(logger)
+func NewTorrentFile(conf config.SonarrConfig, filepath string, logger *slog.Logger) error {
+	torrentItem, err := new(conf, logger)
+	if err != nil {
+		return err
+	}
+
 	torrentItem.ingestedPath = filepath
 
 	if err := torrentItem.sm.Event(context.Background(), "torrentFound"); err != nil {
@@ -103,11 +122,13 @@ func NewTorrentFile(filepath string, logger *slog.Logger) error {
 }
 
 // TODO: Accept logger here
-func ResumeProcessingFile(filepath string, logger *slog.Logger) error {
-	sonarrConfig := config.GetAppConfig().Sonarr
+func ResumeProcessingFile(conf config.SonarrConfig, filepath string, logger *slog.Logger) error {
+	torrentItem, err := new(conf, logger)
+	if err != nil {
+		return err
+	}
 
-	torrentItem := new(logger)
-	toProcess, err := torrents.NewFileToProcess(filepath, sonarrConfig.ProcessingPath)
+	toProcess, err := torrents.NewFileToProcess(filepath, conf.ProcessingPath)
 	if err != nil {
 		return err
 	}
@@ -195,8 +216,7 @@ func (s *MonitorItem) enterProcessing(c context.Context, e *fsm.Event) {
 	}
 	s.logger.Info("moving to processing")
 
-	sonarrConfig := config.GetAppConfig().Sonarr
-	toProcess, err := torrents.NewFileToProcess(s.ingestedPath, sonarrConfig.ProcessingPath)
+	toProcess, err := torrents.NewFileToProcess(s.ingestedPath, s.config.ProcessingPath)
 	if err != nil {
 		if err := s.sm.Event(c, "failed", err); err != nil {
 			s.logger.Error(fmt.Sprintf("event transition %s failed", "failed"), "err", err)
@@ -324,16 +344,28 @@ func (s *MonitorItem) waitToRetryDebridProcessing(c context.Context, e *fsm.Even
 	}
 }
 
+func (s *MonitorItem) monitorSuccessCallback() error {
+	_, err := s.sonarrClient.RefreshMonitoredDownloads()
+	// TODO: Confirm refresh happened
+	return err
+}
+
+func (s *MonitorItem) monitorFailureCallback() {
+}
+
 func (s *MonitorItem) addToDebridMonitor(torrentInfo debrid.GetInfoResponse) {
 	s.logger = s.logger.With("torrentFilename", torrentInfo.Filename)
 	s.logger.Info("adding to monitor")
-	sonarrConfig := config.GetAppConfig().Sonarr
 	debridMonitor.MonitorForDebridFiles(debridMonitor.MonitorConfig{
 		Filename:         torrentInfo.Filename,
 		OriginalFilename: torrentInfo.OriginalFilename,
-		CompletedDir:     sonarrConfig.CompletedPath,
+		CompletedDir:     s.config.CompletedPath,
 		Service:          arr.Sonarr,
 		ProcessingPath:   s.processingTorrent.FullPath,
+		Callbacks: debridMonitor.Callbacks{
+			Success: func() error { return s.monitorSuccessCallback() },
+			Failure: func() { s.monitorFailureCallback() },
+		},
 	}, s.logger)
 }
 
@@ -345,7 +377,7 @@ func (s *MonitorItem) removeFromSonarr() {
 	}
 	s.logger.With("magnetHash", hash)
 
-	history, err := arr.SonarrGetHistory(50)
+	history, err := s.sonarrClient.SonarrGetHistory(50)
 	if err != nil {
 		s.logger.Error("failed to get history")
 		return
@@ -361,7 +393,7 @@ func (s *MonitorItem) removeFromSonarr() {
 	sonarrId := history.Records[toRemove].ID
 	s.logger.With("sonarrID", sonarrId)
 
-	err = arr.SonarrFailHistoryItem(sonarrId)
+	err = s.sonarrClient.SonarrFailHistoryItem(sonarrId)
 	if toRemove == -1 {
 		s.logger.Error("failed to fail history item with id")
 		return

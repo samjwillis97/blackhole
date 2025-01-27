@@ -22,6 +22,7 @@ type MonitorConfig struct {
 	CompletedDir     string
 	ProcessingPath   string
 	Service          arr.ArrService
+	Callbacks        Callbacks
 }
 
 func MonitorForDebridFiles(c MonitorConfig, logger *slog.Logger) {
@@ -39,6 +40,7 @@ func MonitorForDebridFiles(c MonitorConfig, logger *slog.Logger) {
 		Service:          c.Service,
 		CompletedDir:     c.CompletedDir,
 		ProcessingPath:   c.ProcessingPath,
+		Callbacks:        c.Callbacks,
 	}
 	pathSet.add(c.Filename, meta)
 
@@ -54,7 +56,6 @@ func MonitorHandler(e watcher.Event, _ string, logger *slog.Logger) {
 
 	switch e.Op {
 	case watcher.Create:
-		// TODO: Debounce
 		monitor.Debounce(e.Path, monitor.CreateOrWrite, func() {
 			newMountFileOrDir(e.Path, name, logger)
 		})
@@ -65,9 +66,9 @@ func newMountFileOrDir(newPath string, name string, logger *slog.Logger) {
 	pathSet := getPathSetInstance()
 
 	// FIXME: Eventually also check the originalfilename, I guess
-	pathMeta := pathSet.remove(name)
+	pathMeta, err := pathSet.remove(name)
 
-	if (pathMeta == PathMeta{}) {
+	if err != nil {
 		logger.Debug("not monitoring for, skipping")
 		return
 	}
@@ -82,7 +83,7 @@ func newMountFileOrDir(newPath string, name string, logger *slog.Logger) {
 
 	logger.Info("starting symlinking")
 	completedPath := path.Join(pathMeta.CompletedDir, name)
-	err := os.Mkdir(completedPath, os.ModePerm)
+	err = os.Mkdir(completedPath, os.ModePerm)
 	if err != nil {
 		logger.Error("failed to link", "err", err)
 		return
@@ -131,14 +132,10 @@ func newMountFileOrDir(newPath string, name string, logger *slog.Logger) {
 
 	logger.Info("symlinking complete")
 
-	// TODO: error handles
-	// TODO: Confirm refresh happened
-	switch pathMeta.Service {
-	case arr.Sonarr:
-		_, err = arr.SonarrRefreshMonitoredDownloads()
-		if err != nil {
-			logger.Warn("failed to refresh sonarr", "err", err)
-		}
+	err = pathMeta.Callbacks.Success()
+	if err != nil {
+		logger.Warn("success callback failed", "err", err)
+		pathMeta.Callbacks.Failure()
 	}
 
 	logger.Debug("removing from processing")

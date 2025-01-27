@@ -48,6 +48,8 @@ func blessRequest(r *http.Request) *http.Request {
 }
 
 // TODO: implement retries
+// TODO: Maybe put a lock around this to ensure not too many requests at once
+// And they can all share the same retry mechanism to not overload
 
 // Contents of a magnet file contain the magnet link
 func AddMagnet(magnetLink string) (AddTorrentResponse, error) {

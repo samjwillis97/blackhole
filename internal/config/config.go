@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 	"os"
 
@@ -26,6 +27,7 @@ type DebridConfig struct {
 }
 
 type SonarrConfig struct {
+	Name           string `mapstructure:"name"`
 	Url            string
 	WatchPath      string `mapstructure:"watch_path"`
 	ProcessingPath string `mapstructure:"processing_path"`
@@ -34,7 +36,7 @@ type SonarrConfig struct {
 
 type AppConfig struct {
 	RealDebrid DebridConfig `mapstructure:"real_debrid"`
-	Sonarr     SonarrConfig
+	Sonarr     []SonarrConfig
 }
 
 // This seems kinda fucked idk
@@ -137,17 +139,19 @@ func validateAppConfig() {
 		panic(errors.New("Invalid path for Real Debrid watch"))
 	}
 
-	_, err = url.ParseRequestURI(appConf.Sonarr.Url)
-	if err != nil {
-		panic(errors.New("Invalid URL for Sonarr"))
-	}
+	for _, v := range appConf.Sonarr {
+		_, err = url.ParseRequestURI(v.Url)
+		if err != nil {
+			panic(errors.New(fmt.Sprintf("Invalid URL for Sonarr: %s", v.Name)))
+		}
 
-	if _, err := os.Stat(appConf.Sonarr.CompletedPath); err != nil {
-		panic(errors.New("Invalid path for Sonarr completed"))
-	}
+		if _, err := os.Stat(v.CompletedPath); err != nil {
+			panic(errors.New(fmt.Sprintf("Invalid path for Sonarr completed: %s", v.Name)))
+		}
 
-	if _, err := os.Stat(appConf.Sonarr.ProcessingPath); err != nil {
-		panic(errors.New("Invalid path for Sonarr processing"))
+		if _, err := os.Stat(v.ProcessingPath); err != nil {
+			panic(errors.New(fmt.Sprintf("Invalid path for Sonarr processing: %s", v.Name)))
+		}
 	}
 }
 

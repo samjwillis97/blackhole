@@ -8,8 +8,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-
-	"github.com/samjwillis97/sams-blackhole/internal/config"
 )
 
 type SonarrCommandResponse struct {
@@ -48,19 +46,34 @@ type SonarrHistoryItemData struct {
 	TorrentInfoHash string `json:"torrentInfoHash"`
 }
 
+type SonarrClient struct {
+	URL    *url.URL
+	APIKey string
+}
+
+func CreateNewSonarrClient(baseUrl string, apiKey string) (*SonarrClient, error) {
+	url, err := url.Parse(baseUrl)
+	if err != nil {
+		return nil, err
+	}
+	return &SonarrClient{
+		URL:    url,
+		APIKey: apiKey,
+	}, nil
+}
+
 // TODO: implement retries
 // TODO: Maybe just a request wrapper for logging as well
 
-func blessSonarrRequest(r *http.Request) *http.Request {
-	r.Header.Set("X-Api-Key", config.GetSecrets().SonarrApiKey)
+func (s *SonarrClient) blessSonarrRequest(r *http.Request) *http.Request {
+	r.Header.Set("X-Api-Key", s.APIKey)
 	r.Header.Set("Content-Type", "application/json")
 
 	return r
 }
 
-func SonarrRefreshMonitoredDownloads() (SonarrCommandResponse, error) {
-	url, err := url.Parse(config.GetAppConfig().Sonarr.Url)
-	url = url.JoinPath("/api/v3/command")
+func (s *SonarrClient) RefreshMonitoredDownloads() (SonarrCommandResponse, error) {
+	url := s.URL.JoinPath("/api/v3/command")
 
 	payload := []byte(`{"name":"RefreshMonitoredDownloads"}`)
 	req, err := http.NewRequest(http.MethodPost, url.String(), bytes.NewBuffer(payload))
@@ -68,7 +81,7 @@ func SonarrRefreshMonitoredDownloads() (SonarrCommandResponse, error) {
 		return SonarrCommandResponse{}, err
 	}
 
-	req = blessSonarrRequest(req)
+	req = s.blessSonarrRequest(req)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -95,9 +108,8 @@ func SonarrRefreshMonitoredDownloads() (SonarrCommandResponse, error) {
 	return apiResponse, nil
 }
 
-func SonarrGetHistory(pagesize int) (SonarrHistoryResponse, error) {
-	url, err := url.Parse(config.GetAppConfig().Sonarr.Url)
-	url = url.JoinPath("/api/v3/history")
+func (s *SonarrClient) SonarrGetHistory(pagesize int) (SonarrHistoryResponse, error) {
+	url := s.URL.JoinPath("/api/v3/history")
 
 	query := url.Query()
 	query.Add("pageSize", fmt.Sprintf("%d", pagesize))
@@ -108,7 +120,7 @@ func SonarrGetHistory(pagesize int) (SonarrHistoryResponse, error) {
 		return SonarrHistoryResponse{}, err
 	}
 
-	req = blessSonarrRequest(req)
+	req = s.blessSonarrRequest(req)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -134,16 +146,15 @@ func SonarrGetHistory(pagesize int) (SonarrHistoryResponse, error) {
 }
 
 // Have to get the ID from the history endpoint, will investigate what the mapping is
-func SonarrFailHistoryItem(id int) error {
-	url, err := url.Parse(config.GetAppConfig().Sonarr.Url)
-	url = url.JoinPath("/api/v3/history/failed", fmt.Sprintf("%d", id))
+func (s *SonarrClient) SonarrFailHistoryItem(id int) error {
+	url := s.URL.JoinPath("/api/v3/history/failed", fmt.Sprintf("%d", id))
 
 	req, err := http.NewRequest(http.MethodPost, url.String(), nil)
 	if err != nil {
 		return err
 	}
 
-	req = blessSonarrRequest(req)
+	req = s.blessSonarrRequest(req)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)

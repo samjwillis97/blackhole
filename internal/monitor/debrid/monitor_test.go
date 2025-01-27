@@ -2,34 +2,28 @@ package debrid_test
 
 import (
 	"errors"
-	"io"
-	"net/http"
-	"net/http/httptest"
+	"log/slog"
 	"os"
 	"path"
 	"testing"
 
-	"github.com/fsnotify/fsnotify"
 	"github.com/samjwillis97/sams-blackhole/internal/arr"
 	"github.com/samjwillis97/sams-blackhole/internal/config"
-	"github.com/samjwillis97/sams-blackhole/internal/monitor"
+	"github.com/samjwillis97/sams-blackhole/internal/logger"
 	"github.com/samjwillis97/sams-blackhole/internal/monitor/debrid"
 	"github.com/spf13/viper"
 )
 
-type setupInput struct {
-	ServerUrl string
-	ApiKey    string
-}
-
 type setupOutput struct {
-	ToLinkDir     string
-	InternalFiles []string
-	CompletedDir  string
+	ToLinkDir      string
+	ProcessingFile string
+	InternalFiles  []string
+	CompletedDir   string
 }
 
-func setup(input setupInput) setupOutput {
-	toLinkDir, err := os.MkdirTemp("", "debrid-monitor-test-torrent-*")
+func setup() setupOutput {
+	processingFile, err := os.CreateTemp("", "debrid-test-processing-file-*")
+	toLinkDir, err := os.MkdirTemp("", "debrid-test-torrent-*")
 	if err != nil {
 		panic(err)
 	}
@@ -50,7 +44,7 @@ func setup(input setupInput) setupOutput {
 		}
 	}
 
-	completedDir, err := os.MkdirTemp("", "debrid-monitor-test-completed-*")
+	completedDir, err := os.MkdirTemp("", "debrid-test-completed-*")
 	if err != nil {
 		panic(err)
 	}
@@ -58,63 +52,38 @@ func setup(input setupInput) setupOutput {
 	mockViper := viper.New()
 	mockViper.Set("real_debrid.url", "http://localhost")
 	mockViper.Set("real_debrid.mount_timeout", 30)
-	mockViper.Set("sonarr.url", input.ServerUrl)
+	mockViper.Set("real_debrid.watch_path", "/tmp")
 	config.InitializeAppConfig(mockViper)
 
-	mockSecretViper := viper.New()
-	mockSecretViper.Set("sonarrapikey", input.ApiKey)
-	config.InitializeSecrets(mockSecretViper)
-
-	return setupOutput{ToLinkDir: toLinkDir, CompletedDir: completedDir, InternalFiles: files}
+	return setupOutput{ProcessingFile: processingFile.Name(), ToLinkDir: toLinkDir, CompletedDir: completedDir, InternalFiles: files}
 }
 
 func cleanup(setup setupOutput) {
+	os.Remove(setup.ProcessingFile)
 	os.RemoveAll(setup.ToLinkDir)
 	os.RemoveAll(setup.CompletedDir)
 }
 
 // TODO: Given When Then
 func TestMountMonitorDirCreated(t *testing.T) {
-	apiKey := "test-123"
-	requestMade := false
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requestMade = true
-		if r.Header.Get("X-Api-Key") != apiKey {
-			t.Errorf("Expected a correct X-Api-Key header, got %s", r.Header.Get("X-Api-Key"))
-		}
-		if r.Method != "POST" {
-			t.Errorf("Expected a 'POST', got %s", r.Method)
-		}
-		if r.URL.Path != "/api/v3/command" {
-			t.Errorf("Expected to request '/api/v3/command', got %s", r.URL.Path)
-		}
+	log := slog.New(logger.NewHandler(&slog.HandlerOptions{Level: slog.LevelDebug}))
 
-		bodyBytes, _ := io.ReadAll(r.Body)
-		defer r.Body.Close()
-		bodyString := string(bodyBytes)
-		if bodyString != `{"name":"RefreshMonitoredDownloads"}` {
-			t.Errorf("Body was incorrect, got %s", bodyString)
-		}
-
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer server.Close()
-
-	setupConfig := setup(setupInput{
-		ServerUrl: server.URL,
-		ApiKey:    apiKey,
-	})
+	setupConfig := setup()
 	defer cleanup(setupConfig)
 
-	debrid.MonitorForDebridFiles(path.Base(setupConfig.ToLinkDir), setupConfig.CompletedDir, arr.Sonarr)
+	log.Info("Setup", "data", setupConfig)
 
-	event := fsnotify.Event{
-		Name: path.Base(setupConfig.ToLinkDir),
-		Op:   fsnotify.Create,
-	}
-
-	rootDir, _ := path.Split(setupConfig.ToLinkDir)
-	monitor.DebridMountMonitorHandler(event, rootDir)
+	debrid.MonitorForDebridFiles(debrid.MonitorConfig{
+		Filename:         path.Base(setupConfig.ToLinkDir),
+		OriginalFilename: path.Base(setupConfig.ToLinkDir),
+		CompletedDir:     setupConfig.CompletedDir,
+		ProcessingPath:   setupConfig.ProcessingFile,
+		Service:          arr.Sonarr,
+		Callbacks: debrid.Callbacks{
+			Success: func() error { return nil },
+			Failure: func() {},
+		},
+	}, log)
 
 	expectedOutputDir := path.Join(setupConfig.CompletedDir, path.Base(setupConfig.ToLinkDir))
 	if _, err := os.Stat(expectedOutputDir); errors.Is(err, os.ErrNotExist) {
@@ -128,7 +97,7 @@ func TestMountMonitorDirCreated(t *testing.T) {
 		}
 	}
 
-	if !requestMade {
-		t.Errorf("No request was successfully made")
+	if _, err := os.Lstat(setupConfig.ProcessingFile); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("Processing file still exists at %s", setupConfig.ProcessingFile)
 	}
 }
