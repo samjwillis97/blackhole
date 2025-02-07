@@ -54,8 +54,7 @@ func (m *MonitorItem) setDebridID(id string) {
 func new(conf config.SonarrConfig, logger *slog.Logger) (*MonitorItem, error) {
 	sonarrClient, err := arr.CreateNewSonarrClient(
 		conf.Url,
-		// FIXME: The secrets are bad
-		config.GetSecrets().SonarrApiKey,
+		config.GetSecrets().GetString(fmt.Sprintf("%s_API_KEY", strings.ToUpper(conf.Name))),
 	)
 
 	if err != nil {
@@ -355,6 +354,9 @@ func (s *MonitorItem) monitorFailureCallback() {
 
 func (s *MonitorItem) addToDebridMonitor(torrentInfo debrid.GetInfoResponse) {
 	s.logger = s.logger.With("torrentFilename", torrentInfo.Filename)
+	s.logger = s.logger.With("sonarrCompletedDir", s.config.CompletedPath)
+	s.logger = s.logger.With("sonarrProcessingPath", s.processingTorrent.FullPath)
+
 	s.logger.Info("adding to monitor")
 	debridMonitor.MonitorForDebridFiles(debridMonitor.MonitorConfig{
 		Filename:         torrentInfo.Filename,

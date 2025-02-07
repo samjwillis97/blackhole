@@ -10,15 +10,10 @@ import (
 )
 
 var secretsSet bool = false
-var appSecrets Secrets
+var appSecrets *viper.Viper = nil
 
 var confSet bool = false
 var appConf AppConfig
-
-type Secrets struct {
-	DebridApiKey string `mapstructure:"DEBRID_API_KEY"`
-	SonarrApiKey string `mapstructure:"SONARR_API_KEY"`
-}
 
 type DebridConfig struct {
 	Url          string
@@ -80,17 +75,8 @@ func InitializeAppConfig(v *viper.Viper) {
 }
 
 func InitializeSecrets(v *viper.Viper) {
-	var secrets Secrets
-
 	if v != nil {
-		err := v.Unmarshal(&secrets)
-
-		if err != nil {
-			panic(errors.New("Failed to unmarshal secrets"))
-		}
-
 		secretsSet = true
-		appSecrets = secrets
 		return
 	}
 
@@ -102,18 +88,11 @@ func InitializeSecrets(v *viper.Viper) {
 
 	v.AutomaticEnv()
 
-	err := v.Unmarshal(&secrets)
-	if err != nil {
-		panic(errors.New("Failed to unmarshal secrets"))
-	}
-
 	secretsSet = true
-	appSecrets = secrets
-
-	validateSecrets()
+	appSecrets = v
 }
 
-func GetSecrets() Secrets {
+func GetSecrets() *viper.Viper {
 	if !secretsSet {
 		InitializeSecrets(nil)
 	}
@@ -152,15 +131,5 @@ func validateAppConfig() {
 		if _, err := os.Stat(v.ProcessingPath); err != nil {
 			panic(errors.New(fmt.Sprintf("Invalid path for Sonarr processing: %s", v.Name)))
 		}
-	}
-}
-
-func validateSecrets() {
-	if appSecrets.SonarrApiKey == "" {
-		panic(errors.New("Sonarr API key not set"))
-	}
-
-	if appSecrets.DebridApiKey == "" {
-		panic(errors.New("Debrid API key not set"))
 	}
 }

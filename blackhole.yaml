@@ -4,11 +4,17 @@ sonarr:
     watch_path: /mnt/symlinks/sonarr
     processing_path: /mnt/symlinks/sonarr/processing
     completed_path: /mnt/symlinks/sonarr/completed
-  # - name: sonarr_4k
-  #   url: http://192.168.4.97:8484
-  #   watch_path: /mnt/symlinks/sonarr_4k
-  #   processing_path: /mnt/symlinks/sonarr_4k/processing
-  #   completed_path: /mnt/symlinks/sonarr_4k/completed
+  - name: sonarr_4k
+    url: http://192.168.4.97:8484
+    watch_path: /mnt/symlinks/sonarr 4k
+    processing_path: /mnt/symlinks/sonarr 4k/processing
+    completed_path: /mnt/symlinks/sonarr 4k/completed
+radarr:
+  - name: radarr
+    url: http://192.168.4.97:7878
+    watch_path: /mnt/symlinks/radarr
+    processing_path: /mnt/symlinks/radarr/processing
+    completed_path: /mnt/symlinks/radarr/completed
 real_debrid:
   url: https://api.real-debrid.com/rest/1.0/
   watch_path: /mnt/remote/realdebrid/torrents

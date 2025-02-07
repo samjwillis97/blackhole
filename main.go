@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"path"
@@ -82,7 +83,7 @@ func setupSonarrMonitor(log *slog.Logger) []monitor.MonitorSetting {
 		log.Info("finished processing existing sonarr files")
 
 		monitors = append(monitors, monitor.MonitorSetting{
-			Name:         "Sonarr Monitor",
+			Name:         config.Name,
 			Directory:    config.WatchPath,
 			EventHandler: sonarr.MonitorHandlerBuilder(config),
 		},

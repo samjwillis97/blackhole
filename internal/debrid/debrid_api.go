@@ -42,7 +42,7 @@ type GetInfoResponse struct {
 }
 
 func blessRequest(r *http.Request) *http.Request {
-	r.Header.Set("Authorization", fmt.Sprintf("Bearer %s", config.GetSecrets().DebridApiKey))
+	r.Header.Set("Authorization", fmt.Sprintf("Bearer %s", config.GetSecrets().GetString("DEBRID_API_KEY")))
 
 	return r
 }

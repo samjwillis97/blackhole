@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"path"
 	"strings"
 	"time"
 
@@ -146,13 +147,17 @@ func eventWatchHandler(w *fsnotify.Watcher, s []MonitorSetting, logger *slog.Log
 			}
 
 			for _, setting := range s {
-				if strings.Contains(event.Name, setting.Directory) {
-					eventId := uuid.New()
-					logger = logger.With("monitorName", setting.Name).With("monitorEventType", event.Op.String()).With("monitorEventPath", event.Name).With("eventID", eventId)
+				currentDir := event.Name
+				for currentDir != "/" {
+					currentDir = path.Dir(currentDir)
+					if currentDir == setting.Directory {
+						eventId := uuid.New()
+						logger = logger.With("monitorName", setting.Name).With("monitorEventType", event.Op.String()).With("monitorEventPath", event.Name).With("eventID", eventId)
 
-					logger.Debug("event received")
-					// FIXME: I dont like putting a `go` here, feels like there is something blocking the function
-					go setting.EventHandler(event, setting.Directory, logger)
+						logger.Debug("event received")
+						// FIXME: I dont like putting a `go` here, feels like there is something blocking the function
+						go setting.EventHandler(event, setting.Directory, logger)
+					}
 				}
 			}
 		case err, ok := <-w.Errors:
