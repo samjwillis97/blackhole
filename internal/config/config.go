@@ -21,7 +21,7 @@ type DebridConfig struct {
 	MountTimeout int64  `mapstructure:"mount_timeout"` // This is time we will wait for it to appear in the mount
 }
 
-type SonarrConfig struct {
+type ArrConfig struct {
 	Name           string `mapstructure:"name"`
 	Url            string
 	WatchPath      string `mapstructure:"watch_path"`
@@ -31,7 +31,8 @@ type SonarrConfig struct {
 
 type AppConfig struct {
 	RealDebrid DebridConfig `mapstructure:"real_debrid"`
-	Sonarr     []SonarrConfig
+	Sonarr     []ArrConfig
+	Radarr     []ArrConfig
 }
 
 // This seems kinda fucked idk
@@ -130,6 +131,21 @@ func validateAppConfig() {
 
 		if _, err := os.Stat(v.ProcessingPath); err != nil {
 			panic(errors.New(fmt.Sprintf("Invalid path for Sonarr processing: %s", v.Name)))
+		}
+	}
+
+	for _, v := range appConf.Radarr {
+		_, err = url.ParseRequestURI(v.Url)
+		if err != nil {
+			panic(errors.New(fmt.Sprintf("Invalid URL for Radarr: %s", v.Name)))
+		}
+
+		if _, err := os.Stat(v.CompletedPath); err != nil {
+			panic(errors.New(fmt.Sprintf("Invalid path for Radarr completed: %s", v.Name)))
+		}
+
+		if _, err := os.Stat(v.ProcessingPath); err != nil {
+			panic(errors.New(fmt.Sprintf("Invalid path for Radarr processing: %s", v.Name)))
 		}
 	}
 }

@@ -34,9 +34,9 @@ type MonitorItem struct {
 	timeoutTime time.Time
 	prettyName  string
 
-	sonarrClient *arr.SonarrClient
-	logger       *slog.Logger
-	config       config.SonarrConfig
+	arrClient arr.ArrClient
+	logger    *slog.Logger
+	config    config.ArrConfig
 
 	sm *fsm.FSM
 }
@@ -51,20 +51,31 @@ func (m *MonitorItem) setDebridID(id string) {
 	m.logger = m.logger.With("debridID", id)
 }
 
-func new(conf config.SonarrConfig, logger *slog.Logger) (*MonitorItem, error) {
-	sonarrClient, err := arr.CreateNewSonarrClient(
-		conf.Url,
-		config.GetSecrets().GetString(fmt.Sprintf("%s_API_KEY", strings.ToUpper(conf.Name))),
-	)
+func new(serviceType arr.ArrService, conf config.ArrConfig, logger *slog.Logger) (*MonitorItem, error) {
+	var client arr.ArrClient
+	var err error
+
+	switch serviceType {
+	case arr.Sonarr:
+		client, err = arr.CreateNewSonarrClient(
+			conf.Url,
+			config.GetSecrets().GetString(fmt.Sprintf("%s_API_KEY", strings.ToUpper(conf.Name))),
+		)
+	case arr.Radarr:
+		client, err = arr.CreateNewRadarrClient(
+			conf.Url,
+			config.GetSecrets().GetString(fmt.Sprintf("%s_API_KEY", strings.ToUpper(conf.Name))),
+		)
+	}
 
 	if err != nil {
 		return nil, err
 	}
 
 	s := &MonitorItem{
-		sonarrClient: sonarrClient,
-		config:       conf,
-		logger:       logger,
+		arrClient: client,
+		config:    conf,
+		logger:    logger,
 	}
 
 	callbacks := fsm.Callbacks{
@@ -105,8 +116,8 @@ func new(conf config.SonarrConfig, logger *slog.Logger) (*MonitorItem, error) {
 	return s, nil
 }
 
-func NewTorrentFile(conf config.SonarrConfig, filepath string, logger *slog.Logger) error {
-	torrentItem, err := new(conf, logger)
+func NewTorrentFile(serviceType arr.ArrService, conf config.ArrConfig, filepath string, logger *slog.Logger) error {
+	torrentItem, err := new(serviceType, conf, logger)
 	if err != nil {
 		return err
 	}
@@ -121,8 +132,8 @@ func NewTorrentFile(conf config.SonarrConfig, filepath string, logger *slog.Logg
 }
 
 // TODO: Accept logger here
-func ResumeProcessingFile(conf config.SonarrConfig, filepath string, logger *slog.Logger) error {
-	torrentItem, err := new(conf, logger)
+func ResumeProcessingFile(serviceType arr.ArrService, conf config.ArrConfig, filepath string, logger *slog.Logger) error {
+	torrentItem, err := new(serviceType, conf, logger)
 	if err != nil {
 		return err
 	}
@@ -344,7 +355,7 @@ func (s *MonitorItem) waitToRetryDebridProcessing(c context.Context, e *fsm.Even
 }
 
 func (s *MonitorItem) monitorSuccessCallback() error {
-	_, err := s.sonarrClient.RefreshMonitoredDownloads()
+	_, err := s.arrClient.RefreshMonitoredDownloads()
 	// TODO: Confirm refresh happened
 	return err
 }
@@ -379,13 +390,13 @@ func (s *MonitorItem) removeFromSonarr() {
 	}
 	s.logger.With("magnetHash", hash)
 
-	history, err := s.sonarrClient.SonarrGetHistory(50)
+	history, err := s.arrClient.GetHistory(50)
 	if err != nil {
 		s.logger.Error("failed to get history")
 		return
 	}
 
-	toRemove := slices.IndexFunc(history.Records, func(item arr.SonarrHistoryItem) bool {
+	toRemove := slices.IndexFunc(history.Records, func(item arr.HistoryItem) bool {
 		return item.EventType == arr.Grabbed && item.Data.TorrentInfoHash == hash
 	})
 	if toRemove == -1 {
@@ -395,7 +406,7 @@ func (s *MonitorItem) removeFromSonarr() {
 	sonarrId := history.Records[toRemove].ID
 	s.logger.With("sonarrID", sonarrId)
 
-	err = s.sonarrClient.SonarrFailHistoryItem(sonarrId)
+	err = s.arrClient.FailHistoryItem(sonarrId)
 	if toRemove == -1 {
 		s.logger.Error("failed to fail history item with id")
 		return

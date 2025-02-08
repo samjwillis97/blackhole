@@ -125,7 +125,7 @@ func (m *Monitor) createEventBasedWatcher() (*fsnotify.Watcher, error) {
 	go eventWatchHandler(eventWatcher, eventBasedMonitors, logger)
 
 	for _, setting := range eventBasedMonitors {
-		logger.Info("watching", "directory", setting.Directory)
+		logger.Info("watching directory", "directory", setting.Directory)
 		err = eventWatcher.Add(setting.Directory)
 		if err != nil {
 			return nil, errors.New(fmt.Sprintf("Failed to watch %s: %s", setting.Directory, err))
