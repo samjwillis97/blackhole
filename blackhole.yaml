@@ -15,6 +15,11 @@ radarr:
     watch_path: /mnt/symlinks/radarr
     processing_path: /mnt/symlinks/radarr/processing
     completed_path: /mnt/symlinks/radarr/completed
+  - name: radarr_4k
+    url: http://192.168.4.97:7474
+    watch_path: /mnt/symlinks/radarr 4k
+    processing_path: /mnt/symlinks/radarr 4k/processing
+    completed_path: /mnt/symlinks/radarr 4k/completed
 real_debrid:
   url: https://api.real-debrid.com/rest/1.0/
   watch_path: /mnt/remote/realdebrid/torrents
