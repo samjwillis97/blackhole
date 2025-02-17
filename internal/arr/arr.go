@@ -34,8 +34,27 @@ const (
 	DownloadIgnored                             = "downloadIgnored"
 )
 
+type HistoryReleaseType string
+
+const (
+	UnknownReleaseType HistoryReleaseType = "Unknown"
+	SingleEpisode                         = "SingleEpisode"
+	MultiEpisode                          = "MultiEpisode"
+	SeasonPack                            = "SeasonPack"
+)
+
 type HistoryItemData struct {
-	TorrentInfoHash string `json:"torrentInfoHash"`
+	TorrentInfoHash string             `json:"torrentInfoHash"`
+	ReleaseType     HistoryReleaseType `json:"releaseType"`
+}
+
+// Should only ever be present on sonarr items
+type HistoryItemEpisode struct {
+	ID            int `json:"id"`
+	SeriesID      int `json:"seriesId"`
+	EpisodeFileId int `json:"episodeFileId"`
+	SeasonNumber  int `json:"seasonNumber"`
+	EpisodeNumber int `json:"episodeNumber"`
 }
 
 type HistoryItem struct {
@@ -43,6 +62,7 @@ type HistoryItem struct {
 	SourceTitle string               `json:"sourceTitle"`
 	EventType   HistoryItemEventType `json:"eventType"`
 	Data        HistoryItemData      `json:"data"`
+	Episode     HistoryItemEpisode   `json:"episode"`
 }
 
 type HistoryResponse struct {

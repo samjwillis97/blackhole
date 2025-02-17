@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"slices"
 	"strings"
 
 	"time"
@@ -390,25 +389,51 @@ func (s *MonitorItem) removeFromSonarr() {
 	}
 	s.logger.With("magnetHash", hash)
 
-	history, err := s.arrClient.GetHistory(50)
+	history, err := s.arrClient.GetHistory(100)
 	if err != nil {
 		s.logger.Error("failed to get history")
 		return
 	}
 
-	toRemove := slices.IndexFunc(history.Records, func(item arr.HistoryItem) bool {
-		return item.EventType == arr.Grabbed && item.Data.TorrentInfoHash == hash
-	})
-	if toRemove == -1 {
+	var toRemove []int
+	for i, item := range history.Records {
+		if item.EventType == arr.Grabbed && item.Data.TorrentInfoHash == hash {
+			toRemove = append(toRemove, i)
+		}
+	}
+
+	if len(toRemove) == 0 {
 		s.logger.Error("could not find hash in history")
 		return
 	}
-	sonarrId := history.Records[toRemove].ID
-	s.logger.With("sonarrID", sonarrId)
 
-	err = s.arrClient.FailHistoryItem(sonarrId)
-	if toRemove == -1 {
-		s.logger.Error("failed to fail history item with id")
-		return
+	isSeasonPack := history.Records[toRemove[0]].Data.ReleaseType == arr.SeasonPack
+	if isSeasonPack {
+		s.logger.Info("season pack found")
+		toRemove = []int{toRemove[0]}
+	}
+
+	for _, item := range toRemove {
+		arrId := history.Records[item].ID
+		s.logger.With("arrId", arrId)
+
+		s.logger.Info("failing history item")
+		err = s.arrClient.FailHistoryItem(arrId)
+		if err != nil {
+			s.logger.Error("failed to fail history item")
+		}
+	}
+
+	switch client := s.arrClient.(type) {
+	case *arr.SonarrClient:
+		// TODO: Maybe put this behind a config option
+		if isSeasonPack {
+			historyRecord := history.Records[toRemove[0]]
+			s.logger.Info("triggering retry of season")
+			_, err := client.SearchSeason(historyRecord.Episode.SeriesID, historyRecord.Episode.SeasonNumber)
+			if err != nil {
+				s.logger.Error("failed to retry season")
+			}
+		}
 	}
 }

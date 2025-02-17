@@ -77,6 +77,7 @@ func (s *SonarrClient) GetHistory(pagesize int) (HistoryResponse, error) {
 
 	query := url.Query()
 	query.Add("pageSize", fmt.Sprintf("%d", pagesize))
+	query.Add("includeEpisode", "true")
 	url.RawQuery = query.Encode()
 
 	req, err := http.NewRequest(http.MethodGet, url.String(), nil)
@@ -132,4 +133,42 @@ func (s *SonarrClient) FailHistoryItem(id int) error {
 	}
 
 	return nil
+}
+
+func (s *SonarrClient) SearchSeason(seriesId int, seasonNumber int) (CommandResponse, error) {
+	url := s.URL.JoinPath("/api/v3/command")
+
+	payload := []byte(
+		fmt.Sprintf(`{"name":"SeasonSearch", "seriesId": %d, "seasonNumber": %d}`, seriesId, seasonNumber),
+	)
+	req, err := http.NewRequest(http.MethodPost, url.String(), bytes.NewBuffer(payload))
+	if err != nil {
+		return CommandResponse{}, err
+	}
+
+	req = s.blessSonarrRequest(req)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return CommandResponse{}, err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 300 {
+		// TODO: Trace log
+		return CommandResponse{}, errors.New(fmt.Sprintf("Unable to make request response code: %d", resp.StatusCode))
+	}
+
+	defer resp.Body.Close()
+	bodyBytes, _ := io.ReadAll(resp.Body)
+
+	var apiResponse CommandResponse
+	err = json.Unmarshal(bodyBytes, &apiResponse)
+	if err != nil {
+		return CommandResponse{}, err
+	}
+
+	return apiResponse, nil
 }
