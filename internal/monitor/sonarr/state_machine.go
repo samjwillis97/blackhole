@@ -200,13 +200,13 @@ func (s *MonitorItem) enterFailure(c context.Context, e *fsm.Event) {
 		s.logger.Info("removed from debrid")
 	}
 
-	err := os.Remove(s.processingTorrent.FullPath)
-	if err != nil {
-		s.logger.Error("failed to remove from processing", "err", err)
-	}
-
 	s.removeFromSonarr()
 	s.logger.Info("removed from sonarr")
+
+	err := os.Remove(s.processingTorrent.FullPath)
+	if err != nil {
+		s.logger.Error("failed to remove file from processing", "err", err)
+	}
 }
 
 func (s *MonitorItem) checkRequiredParams(c context.Context, e *fsm.Event) bool {
@@ -382,12 +382,12 @@ func (s *MonitorItem) addToDebridMonitor(torrentInfo debrid.GetInfoResponse) {
 }
 
 func (s *MonitorItem) removeFromSonarr() {
-	hash, err := s.processingTorrent.GetMagnetHash()
+	hash, err := s.processingTorrent.GetHash()
 	if err != nil {
-		s.logger.Error("failed to get hash")
+		s.logger.Error("failed to get hash", "err", err)
 		return
 	}
-	s.logger.With("magnetHash", hash)
+	s.logger = s.logger.With("infoHash", hash)
 
 	history, err := s.arrClient.GetHistory(100)
 	if err != nil {
@@ -397,7 +397,7 @@ func (s *MonitorItem) removeFromSonarr() {
 
 	var toRemove []int
 	for i, item := range history.Records {
-		if item.EventType == arr.Grabbed && item.Data.TorrentInfoHash == hash {
+		if item.EventType == arr.Grabbed && strings.ToUpper(item.Data.TorrentInfoHash) == strings.ToUpper(hash) {
 			toRemove = append(toRemove, i)
 		}
 	}
@@ -415,7 +415,7 @@ func (s *MonitorItem) removeFromSonarr() {
 
 	for _, item := range toRemove {
 		arrId := history.Records[item].ID
-		s.logger.With("arrId", arrId)
+		s.logger = s.logger.With("arrId", arrId)
 
 		s.logger.Info("failing history item")
 		err = s.arrClient.FailHistoryItem(arrId)

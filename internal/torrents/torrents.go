@@ -1,11 +1,16 @@
 package torrents
 
 import (
+	"bytes"
+	"crypto/sha1"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
 	"path"
 	"strings"
+
+	"github.com/jackpal/bencode-go"
 )
 
 type TorrentType int
@@ -22,6 +27,27 @@ type ToProcess struct {
 	FileType      TorrentType
 
 	magnet string
+}
+
+type infoDict struct {
+	Pieces      string     `bencode:"pieces"`
+	PieceLength int        `bencode:"piece length"`
+	Name        string     `bencode:"name,omitempty"`
+	NameUTF8    string     `bencode:"name.utf-8,omitempty"`
+	Files       []fileDict `bencode:"files,omitempty"`
+	Length      int64      `bencode:"length,omitempty"`
+	Private     int        `bencode:"private,omitempty"`
+	MD5Sum      string     `bencode:"md5sum,omitempty"`
+}
+
+type fileDict struct {
+	Length   int64    `bencode:"length"`
+	Path     []string `bencode:"path"`
+	PathUTF8 []string `bencode:"path.utf-8,omitempty"`
+}
+
+type torrentFile struct {
+	Info infoDict `bencode:"info"`
 }
 
 // NewFileToProcess looks at the given file path, and moves the
@@ -58,28 +84,31 @@ func NewFileToProcess(filePath string, processingLocation string) (ToProcess, er
 }
 
 func (t *ToProcess) GetMagnetLink() (string, error) {
-	if t.FileType == TorrentFile {
+	if t.FileType != Magnet {
 		return "", errors.New("Unable to get magnet for torrent file")
 	}
 
-	if t.magnet == "" {
-		fileContent, err := os.ReadFile(t.FullPath)
-		if err != nil {
-			return "", err
-		}
-		t.magnet = string(fileContent)
+	fileContent, err := os.ReadFile(t.FullPath)
+	if err != nil {
+		return "", err
 	}
-
-	return t.magnet, nil
+	return string(fileContent), nil
 }
 
-func (t *ToProcess) GetMagnetHash() (string, error) {
-	magnetLink, err := t.GetMagnetLink()
+func (t *ToProcess) GetHash() (string, error) {
+	fileContent, err := os.ReadFile(t.FullPath)
 	if err != nil {
 		return "", err
 	}
 
-	return getInfoHash(magnetLink)
+	switch t.FileType {
+	case TorrentFile:
+		return getTorrentFileInfoHash(fileContent)
+	case Magnet:
+		return getMagnetLinkInfoHash(string(fileContent))
+	}
+
+	return "", errors.New("Unknown file type")
 }
 
 func FromFileInProcessing(filePath string) (ToProcess, error) {
@@ -113,8 +142,28 @@ func getTorrentType(filename string) (TorrentType, error) {
 	return 0, errors.New("Not a valid torrent file")
 }
 
+func getTorrentFileInfoHash(file []byte) (string, error) {
+	torrent := torrentFile{}
+	fileReader := bytes.NewReader(file)
+	err := bencode.Unmarshal(fileReader, &torrent)
+	if err != nil {
+		return "", err
+	}
+
+	var infoBuffer bytes.Buffer
+	err = bencode.Marshal(&infoBuffer, torrent.Info)
+	if err != nil {
+		return "", err
+	}
+
+	hash := sha1.Sum(infoBuffer.Bytes())
+	infoHash := hex.EncodeToString(hash[:])
+
+	return infoHash, nil
+}
+
 // See: https://github.com/alanmcgovern/monotorrent/blob/9e98a44c3af93ace7fe11da363fe345a60c0c93f/src/MonoTorrent.Client/MonoTorrent/MagnetLink.cs#L120
-func getInfoHash(magnetLink string) (string, error) {
+func getMagnetLinkInfoHash(magnetLink string) (string, error) {
 	// Link starts with `magnet:?`
 	// After the ? is the parmaters seperated by `&`
 	if !strings.HasPrefix(magnetLink, "magnet:?") {
