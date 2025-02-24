@@ -116,7 +116,7 @@ func validateAppConfig() {
 	}
 
 	if _, err := os.Stat(appConf.RealDebrid.WatchPatch); err != nil {
-		panic(errors.New("Invalid path for Real Debrid watch"))
+		panic(errors.New(fmt.Sprintf("Invalid path for Real Debrid watch: %s", appConf.RealDebrid.WatchPatch)))
 	}
 
 	for _, v := range appConf.Sonarr {
