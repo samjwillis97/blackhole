@@ -407,26 +407,37 @@ func (s *MonitorItem) removeFromSonarr() {
 		return
 	}
 
-	isSeasonPack := history.Records[toRemove[0]].Data.ReleaseType == arr.SeasonPack
-	if isSeasonPack {
-		s.logger.Info("season pack found")
-		toRemove = []int{toRemove[0]}
-	}
-
-	for _, item := range toRemove {
-		arrId := history.Records[item].ID
-		s.logger = s.logger.With("arrId", arrId)
-
-		s.logger.Info("failing history item")
-		err = s.arrClient.FailHistoryItem(arrId)
-		if err != nil {
-			s.logger.Error("failed to fail history item")
-		}
-	}
-
 	switch client := s.arrClient.(type) {
+	case *arr.RadarrClient:
+		for _, item := range toRemove {
+			arrId := history.Records[item].ID
+			s.logger = s.logger.With("arrId", arrId)
+
+			s.logger.Info("failing history item")
+			err = s.arrClient.FailHistoryItem(arrId)
+			if err != nil {
+				s.logger.Error("failed to fail history item")
+			}
+		}
 	case *arr.SonarrClient:
 		// TODO: Maybe put this behind a config option
+		isSeasonPack := history.Records[toRemove[0]].Data.ReleaseType == arr.SeasonPack
+		if isSeasonPack {
+			s.logger.Info("season pack found")
+			toRemove = []int{toRemove[0]}
+		}
+
+		for _, item := range toRemove {
+			arrId := history.Records[item].ID
+			s.logger = s.logger.With("arrId", arrId)
+
+			s.logger.Info("failing history item")
+			err = s.arrClient.FailHistoryItem(arrId)
+			if err != nil {
+				s.logger.Error("failed to fail history item")
+			}
+		}
+
 		if isSeasonPack {
 			historyRecord := history.Records[toRemove[0]]
 			s.logger.Info("triggering retry of season")
